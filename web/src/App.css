@@ -1,0 +1,13 @@
+/* App styles */
+.app {
+  min-height: 100vh;
+}
+
+/* Drag & drop styles */
+[draggable='true'] {
+  user-select: none;
+}
+
+[draggable='true']:active {
+  opacity: 0.7;
+}

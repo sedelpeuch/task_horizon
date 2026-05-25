@@ -1,0 +1,49 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: taskhorizon-postgres
+    environment:
+      POSTGRES_DB: ${DATABASE_NAME:-taskhorizon}
+      POSTGRES_USER: ${DATABASE_USER:-postgres}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD:-postgres}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DATABASE_USER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    network_mode: "host"
+
+  api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    container_name: taskhorizon-api
+    environment:
+      DATABASE_URL: postgresql://${DATABASE_USER:-postgres}:${DATABASE_PASSWORD:-postgres}@localhost:5432/${DATABASE_NAME:-taskhorizon}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    network_mode: "host"
+    volumes:
+      - ./api/src:/app/src:cached
+
+  web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+    container_name: taskhorizon-web
+    depends_on:
+      - api
+    network_mode: "host"
+    volumes:
+      - ./web/src:/app/src:cached
+
+volumes:
+  postgres_data:
+
+networks:
+  taskhorizon-net:
+    driver: bridge
