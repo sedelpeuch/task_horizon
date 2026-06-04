@@ -3,7 +3,7 @@
 from datetime import datetime
 from uuid import uuid4
 
-from sqlalchemy import DateTime, ForeignKey, LargeBinary, String, Text
+from sqlalchemy import JSON, DateTime, ForeignKey, LargeBinary, String, Text
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -65,6 +65,19 @@ class Column(Base):
         return f"<Column(id={self.id}, name={self.name}, position={self.position})>"
 
 
+class Label(Base):
+    """Global label/tag model."""
+
+    __tablename__ = "labels"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    name: Mapped[str] = mapped_column(String(50), nullable=False, unique=True)
+    color: Mapped[str] = mapped_column(String(20), nullable=False, default="#8b5cf6")
+
+    def __repr__(self) -> str:
+        return f"<Label(name={self.name}, color={self.color})>"
+
+
 class Task(Base):
     """Task model."""
 
@@ -90,6 +103,8 @@ class Task(Base):
         index=True,
     )
     position: Mapped[int] = mapped_column(nullable=False, default=0)
+    priority: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    labels: Mapped[list | None] = mapped_column(JSON, nullable=True, default=list)
     due_date: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(

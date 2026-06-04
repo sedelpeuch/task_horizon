@@ -25,15 +25,24 @@ interface TaskType {
   assignee_id: string | null;
   position: number;
   due_date?: string | null;
+  priority?: string | null;
+  labels?: string[];
   created_at: string;
   updated_at: string;
   assignee: User | null;
+}
+
+interface Label {
+  id: string;
+  name: string;
+  color: string;
 }
 
 interface ColumnProps {
   column: KanbanColumn;
   tasks: TaskType[];
   users: User[];
+  labelCatalog: Label[];
   onAddTask: (columnId: string, title: string, description: string, assigneeId?: string | null) => void;
   onDeleteTask: (taskId: string) => void;
   onEditTask: (task: TaskType) => void;
@@ -52,7 +61,7 @@ const PRESET_COLORS = [
 ];
 
 export default function Column({
-  column, tasks, users,
+  column, tasks, users, labelCatalog,
   onAddTask, onDeleteTask, onEditTask, onDeleteColumn,
   onUpdateColor, onRenameColumn, onDropOnTask,
   onMoveLeft, onMoveRight, onDragStart,
@@ -167,6 +176,7 @@ export default function Column({
             onEdit={onEditTask}
             onDragStart={onDragStart}
             onDropOnTask={onDropOnTask}
+            labelCatalog={labelCatalog}
           />
         ))}
       </div>

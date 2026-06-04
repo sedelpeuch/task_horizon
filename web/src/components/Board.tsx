@@ -26,13 +26,22 @@ interface Task {
   assignee_id: string | null;
   position: number;
   due_date?: string | null;
+  priority?: string | null;
+  labels?: string[];
   created_at: string;
   updated_at: string;
   assignee: User | null;
 }
 
+interface Label {
+  id: string;
+  name: string;
+  color: string;
+}
+
 interface BoardProps {
   users: User[];
+  labels: Label[];
 }
 
 const PRESET_COLORS = [
@@ -42,7 +51,7 @@ const PRESET_COLORS = [
 
 const API_URL = '/api/v1';
 
-export default function Board({ users }: BoardProps) {
+export default function Board({ users, labels }: BoardProps) {
   const [columns, setColumns] = useState<KanbanColumn[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
@@ -53,6 +62,8 @@ export default function Board({ users }: BoardProps) {
   const [newColumnName, setNewColumnName] = useState('');
   const [newColumnColor, setNewColumnColor] = useState('#3b82f6');
   const [filterUserId, setFilterUserId] = useState<string | null>(null);
+  const [filterPriority, setFilterPriority] = useState<string | null>(null);
+  const [filterLabel, setFilterLabel] = useState<string | null>(null);
 
   const fetchTasks = async () => {
     const res = await fetch(`${API_URL}/tasks`);
@@ -221,48 +232,100 @@ export default function Board({ users }: BoardProps) {
   if (error) return <div className="p-4 text-red-400">Erreur : {error}</div>;
 
   const sortedColumns = [...columns].sort((a, b) => a.position - b.position);
-  const visibleTasks = filterUserId ? tasks.filter((t) => t.assignee_id === filterUserId) : tasks;
+  const labelMap = Object.fromEntries(labels.map((l) => [l.name, l.color]));
+  const allLabels = [...new Set(tasks.flatMap((t) => t.labels || []))].sort();
+  const visibleTasks = tasks.filter((t) => {
+    if (filterUserId && t.assignee_id !== filterUserId) return false;
+    if (filterPriority && t.priority !== filterPriority) return false;
+    if (filterLabel && !(t.labels || []).includes(filterLabel)) return false;
+    return true;
+  });
 
   return (
     <div className="w-full">
       {/* Filter bar */}
-      {users.length > 0 && (
-        <div className="flex items-center gap-2 mb-5 flex-wrap">
-          <span className="text-xs text-slate-500 mr-1">Filtrer :</span>
-          <button
-            onClick={() => setFilterUserId(null)}
-            className={`px-3 py-1 rounded-full text-xs font-medium transition ${
-              filterUserId === null
-                ? 'bg-blue-600 text-white'
-                : 'bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700'
-            }`}
-          >
-            Tous
-          </button>
-          {users.map((user) => (
-            <button
-              key={user.id}
-              onClick={() => setFilterUserId(filterUserId === user.id ? null : user.id)}
-              className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium transition ${
-                filterUserId === user.id
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700'
-              }`}
-            >
-              {user.avatar_data || user.avatar_url ? (
-                <img src={user.avatar_data || user.avatar_url} alt={user.name} className="w-4 h-4 rounded-full object-cover" />
-              ) : (
-                <div className="w-4 h-4 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold" style={{ fontSize: '9px' }}>
-                  {user.name.charAt(0).toUpperCase()}
-                </div>
-              )}
-              {user.name}
+      {(users.length > 0 || allLabels.length > 0) && (
+        <div className="mb-5 space-y-2">
+          {/* User filter */}
+          {users.length > 0 && (
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-xs text-slate-500 w-16 flex-shrink-0">Assigné :</span>
+              <button onClick={() => setFilterUserId(null)}
+                className={`px-2.5 py-1 rounded-full text-xs font-medium transition ${filterUserId === null ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-400 hover:bg-slate-700 border border-slate-700'}`}>
+                Tous
+              </button>
+              {users.map((user) => (
+                <button key={user.id} onClick={() => setFilterUserId(filterUserId === user.id ? null : user.id)}
+                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition ${filterUserId === user.id ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-400 hover:bg-slate-700 border border-slate-700'}`}>
+                  {user.avatar_data || user.avatar_url ? (
+                    <img src={user.avatar_data || user.avatar_url} alt={user.name} className="w-3.5 h-3.5 rounded-full object-cover" />
+                  ) : (
+                    <div className="w-3.5 h-3.5 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold" style={{ fontSize: '8px' }}>
+                      {user.name.charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                  {user.name}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Priority filter */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-xs text-slate-500 w-16 flex-shrink-0">Priorité :</span>
+            <button onClick={() => setFilterPriority(null)}
+              className={`px-2.5 py-1 rounded-full text-xs font-medium transition ${filterPriority === null ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-400 hover:bg-slate-700 border border-slate-700'}`}>
+              Toutes
             </button>
-          ))}
-          {filterUserId && (
-            <span className="text-xs text-slate-500 ml-1">
-              {visibleTasks.length} tâche{visibleTasks.length !== 1 ? 's' : ''}
-            </span>
+            {[
+              { value: 'urgent', label: 'Urgente', dot: 'bg-red-500' },
+              { value: 'high',   label: 'Haute',   dot: 'bg-orange-400' },
+              { value: 'medium', label: 'Moyenne', dot: 'bg-blue-400' },
+              { value: 'low',    label: 'Basse',   dot: 'bg-slate-400' },
+            ].map((p) => (
+              <button key={p.value} onClick={() => setFilterPriority(filterPriority === p.value ? null : p.value)}
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition ${filterPriority === p.value ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-400 hover:bg-slate-700 border border-slate-700'}`}>
+                <div className={`w-1.5 h-1.5 rounded-full ${p.dot}`} />
+                {p.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Label filter */}
+          {allLabels.length > 0 && (
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-xs text-slate-500 w-16 flex-shrink-0">Label :</span>
+              {filterLabel && (
+                <button onClick={() => setFilterLabel(null)}
+                  className="px-2.5 py-1 rounded-full text-xs font-medium bg-blue-600 text-white transition">
+                  Tous
+                </button>
+              )}
+              {allLabels.map((label) => {
+                const LABEL_COLORS = ['#8b5cf6', '#ec4899', '#06b6d4', '#10b981', '#f97316', '#ef4444', '#f59e0b', '#3b82f6'];
+                const color = labelMap[label] ?? (() => { let h = 0; for (const c of label) h = (h * 31 + c.charCodeAt(0)) & 0xff; return LABEL_COLORS[h % LABEL_COLORS.length]; })();
+                return (
+                  <button key={label} onClick={() => setFilterLabel(filterLabel === label ? null : label)}
+                    className={`px-2.5 py-1 rounded-full text-xs font-medium text-white transition border-2 ${filterLabel === label ? 'border-white/60' : 'border-transparent opacity-70 hover:opacity-100'}`}
+                    style={{ backgroundColor: color }}>
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Active filter count */}
+          {(filterUserId || filterPriority || filterLabel) && (
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-slate-500">
+                {visibleTasks.length} tâche{visibleTasks.length !== 1 ? 's' : ''} affichée{visibleTasks.length !== 1 ? 's' : ''}
+              </span>
+              <button onClick={() => { setFilterUserId(null); setFilterPriority(null); setFilterLabel(null); }}
+                className="text-xs text-slate-500 hover:text-slate-300 transition underline">
+                Réinitialiser
+              </button>
+            </div>
           )}
         </div>
       )}
@@ -294,6 +357,7 @@ export default function Board({ users }: BoardProps) {
               onDeleteColumn={deleteColumn}
               onUpdateColor={updateColumnColor}
               onRenameColumn={renameColumn}
+              labelCatalog={labels}
               onDropOnTask={handleDropOnTask}
               onMoveLeft={idx > 0 ? () => moveColumn(column.id, 'left') : undefined}
               onMoveRight={idx < arr.length - 1 ? () => moveColumn(column.id, 'right') : undefined}
@@ -354,6 +418,7 @@ export default function Board({ users }: BoardProps) {
       <TaskModal
         task={selectedTask}
         users={users}
+        labelCatalog={labels}
         onSave={updateTask}
         onClose={() => setSelectedTask(null)}
       />

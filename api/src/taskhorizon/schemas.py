@@ -65,6 +65,8 @@ class TaskCreate(BaseModel):
     column_id: str
     assignee_id: str | None = None
     due_date: datetime | None = None
+    priority: str | None = None
+    labels: list[str] = []
 
 
 class TaskUpdate(BaseModel):
@@ -76,6 +78,8 @@ class TaskUpdate(BaseModel):
     assignee_id: str | None = None
     position: int | None = None
     due_date: datetime | None = None
+    priority: str | None = None
+    labels: list[str] | None = None
 
 
 class TaskResponse(BaseModel):
@@ -88,9 +92,35 @@ class TaskResponse(BaseModel):
     assignee_id: str | None
     position: int
     due_date: datetime | None = None
+    priority: str | None = None
+    labels: list[str] = []
     created_at: datetime
     updated_at: datetime
     assignee: UserResponse | None = None
+
+    model_config = {"from_attributes": True}
+
+
+class LabelCreate(BaseModel):
+    """Label creation schema."""
+
+    name: str
+    color: str = "#8b5cf6"
+
+
+class LabelUpdate(BaseModel):
+    """Label update schema."""
+
+    name: str | None = None
+    color: str | None = None
+
+
+class LabelResponse(BaseModel):
+    """Label response schema."""
+
+    id: str
+    name: str
+    color: str
 
     model_config = {"from_attributes": True}
 

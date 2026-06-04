@@ -64,14 +64,19 @@ def update_task(task_id: str, task_update: TaskUpdate, db: Session = Depends(get
             detail="Task not found",
         )
 
-    if task_update.title is not None:
+    fields = task_update.model_fields_set
+    if "title" in fields and task_update.title is not None:
         task.title = task_update.title
-    if task_update.description is not None:
+    if "description" in fields:
         task.description = task_update.description
-    if task_update.assignee_id is not None:
+    if "assignee_id" in fields:
         task.assignee_id = task_update.assignee_id
-    if task_update.due_date is not None:
+    if "due_date" in fields:
         task.due_date = task_update.due_date
+    if "priority" in fields:
+        task.priority = task_update.priority
+    if "labels" in fields and task_update.labels is not None:
+        task.labels = task_update.labels
 
     db.commit()
     db.refresh(task)

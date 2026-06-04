@@ -34,6 +34,8 @@ def init_db():
         conn.execute(
             text("ALTER TABLE columns ADD COLUMN IF NOT EXISTS color VARCHAR(20) DEFAULT '#3b82f6'")
         )
+        conn.execute(text("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS priority VARCHAR(10)"))
+        conn.execute(text("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS labels JSON DEFAULT '[]'"))
         conn.commit()
 
     db = SessionLocal()
