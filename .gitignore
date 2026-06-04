@@ -65,3 +65,4 @@ docker-compose.override.yml
 # Helm
 charts/
 **/Chart.lock
+CLAUDE.md

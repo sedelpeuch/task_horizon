@@ -236,8 +236,14 @@ export default function Board({ users, labels }: BoardProps) {
     });
   };
 
-  if (loading) return <div className="p-4 text-slate-400">Chargement du tableau...</div>;
-  if (error) return <div className="p-4 text-red-400">Erreur : {error}</div>;
+  if (loading) return (
+    <div className="flex items-center justify-center h-64">
+      <span style={{ color: 'var(--gh-text-muted)', fontSize: '14px' }}>Chargement…</span>
+    </div>
+  );
+  if (error) return (
+    <div className="p-4" style={{ color: 'var(--gh-danger-fg)', fontSize: '14px' }}>Erreur : {error}</div>
+  );
 
   const sortedColumns = [...columns].sort((a, b) => a.position - b.position);
   const labelMap = Object.fromEntries(labels.map((l) => [l.name, l.color]));
@@ -263,75 +269,73 @@ export default function Board({ users, labels }: BoardProps) {
     return true;
   });
 
+  const filterActive = !!(filterUserId || filterPriority || filterLabel);
+  const LABEL_PALETTE = ['#8957e5','#db61a2','#0075ca','#0e8a16','#e4e669','#d73a4a','#f9d0c4','#e99695'];
+  const hashColor = (s: string) => { let h = 0; for (const c of s) h = (h * 31 + c.charCodeAt(0)) & 0xff; return LABEL_PALETTE[h % LABEL_PALETTE.length]; };
+  const getChipColor = (label: string) => labelMap[label] ?? hashColor(label);
+  const makeLabelStyle = (color: string) => {
+    const r = parseInt(color.slice(1, 3), 16); const g = parseInt(color.slice(3, 5), 16); const b = parseInt(color.slice(5, 7), 16);
+    const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+    return { backgroundColor: `rgba(${r},${g},${b},0.18)`, color: lum > 0.5 ? `rgb(${Math.round(r*0.65)},${Math.round(g*0.65)},${Math.round(b*0.65)})` : color, borderColor: `rgba(${r},${g},${b},0.4)` };
+  };
+
+  const SORT_LABELS: Record<string, string> = { priority: 'Priorité', due_date: 'Échéance', title: 'Titre A–Z' };
+
   return (
     <div className="w-full">
-      {/* Toolbar */}
-      <div className="flex items-center gap-2 mb-5">
-        {/* Filter dropdown */}
-        <div className="relative">
+      {/* GitHub-style toolbar */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
+
+        {/* Filter */}
+        <div style={{ position: 'relative' }}>
           {showFilterMenu && <div className="fixed inset-0 z-10" onClick={() => setShowFilterMenu(false)} />}
-          <button
-            onClick={() => { setShowFilterMenu(!showFilterMenu); setShowSortMenu(false); }}
-            className={`relative flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition border ${
-              (filterUserId || filterPriority || filterLabel)
-                ? 'bg-blue-600/20 border-blue-500/50 text-blue-300'
-                : 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700'
-            }`}
-          >
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4h18M6 8h12M10 12h4" /></svg>
+          <button onClick={() => { setShowFilterMenu(!showFilterMenu); setShowSortMenu(false); }}
+            className="gh-btn gh-btn-sm"
+            style={{ borderColor: filterActive ? 'var(--gh-accent-fg)' : 'var(--gh-border-default)', color: filterActive ? 'var(--gh-accent-fg)' : 'var(--gh-text-primary)' }}>
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M.75 3h14.5a.75.75 0 010 1.5H.75A.75.75 0 010 3.75.75.75 0 01.75 3zm2 4.5h10.5a.75.75 0 010 1.5H2.75a.75.75 0 010-1.5zm3.75 4.5h3a.75.75 0 010 1.5h-3a.75.75 0 010-1.5z" /></svg>
             Filtrer
-            {(filterUserId || filterPriority || filterLabel) && (
-              <span className="w-1.5 h-1.5 rounded-full bg-blue-400 absolute -top-0.5 -right-0.5" />
-            )}
-            <svg className="w-3 h-3 ml-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+            {filterActive && <span style={{ background: 'var(--gh-accent-emphasis)', color: 'white', borderRadius: '2em', padding: '0 5px', fontSize: '10px', fontWeight: 600 }}>{[filterUserId, filterPriority, filterLabel].filter(Boolean).length}</span>}
+            <svg width="10" height="6" viewBox="0 0 10 6" fill="currentColor"><path d="M0 0l5 6 5-6z" opacity=".5" /></svg>
           </button>
 
           {showFilterMenu && (
-            <div className="absolute top-full mt-1.5 left-0 z-20 bg-slate-800 border border-slate-700 rounded-xl shadow-2xl p-4 w-72 space-y-4">
+            <div className="gh-dropdown absolute z-20" style={{ top: 'calc(100% + 4px)', left: 0, padding: '8px 0', width: '280px' }}>
               {/* Assigné */}
               {users.length > 0 && (
-                <div>
-                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Assigné</p>
-                  <div className="flex flex-wrap gap-1.5">
-                    <button onClick={() => setFilterUserId(null)}
-                      className={`px-2.5 py-1 rounded-lg text-xs font-medium transition ${filterUserId === null ? 'bg-blue-600 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}>
-                      Tous
-                    </button>
-                    {users.map((user) => (
-                      <button key={user.id} onClick={() => setFilterUserId(filterUserId === user.id ? null : user.id)}
-                        className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium transition ${filterUserId === user.id ? 'bg-blue-600 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}>
-                        {user.avatar_data || user.avatar_url ? (
-                          <img src={user.avatar_data || user.avatar_url} alt={user.name} className="w-3.5 h-3.5 rounded-full object-cover" />
-                        ) : (
-                          <div className="w-3.5 h-3.5 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold" style={{ fontSize: '8px' }}>
-                            {user.name.charAt(0).toUpperCase()}
-                          </div>
+                <div style={{ padding: '8px 16px 4px' }}>
+                  <p style={{ fontSize: '11px', fontWeight: 600, color: 'var(--gh-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px' }}>Assigné à</p>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                    {[{ id: null as null, name: 'Tous' }, ...users.map(u => ({ id: u.id, name: u.name, avatar: u.avatar_data || u.avatar_url }))].map(item => (
+                      <button key={item.id ?? 'all'} onClick={() => setFilterUserId(item.id)}
+                        className="gh-btn gh-btn-sm"
+                        style={{ borderColor: filterUserId === item.id ? 'var(--gh-accent-fg)' : 'var(--gh-border-default)', color: filterUserId === item.id ? 'var(--gh-accent-fg)' : 'var(--gh-text-primary)' }}>
+                        {(item as { avatar?: string }).avatar && (
+                          <img src={(item as { avatar?: string }).avatar} alt="" style={{ width: 14, height: 14, borderRadius: '50%', objectFit: 'cover' }} />
                         )}
-                        {user.name}
+                        {item.name}
                       </button>
                     ))}
                   </div>
                 </div>
               )}
 
+              <div style={{ height: '1px', background: 'var(--gh-border-muted)', margin: '8px 0' }} />
+
               {/* Priorité */}
-              <div>
-                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Priorité</p>
-                <div className="flex flex-wrap gap-1.5">
-                  <button onClick={() => setFilterPriority(null)}
-                    className={`px-2.5 py-1 rounded-lg text-xs font-medium transition ${filterPriority === null ? 'bg-blue-600 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}>
-                    Toutes
-                  </button>
-                  {([
-                    { value: 'urgent', label: 'Urgente', dot: 'bg-red-500' },
-                    { value: 'high',   label: 'Haute',   dot: 'bg-orange-400' },
-                    { value: 'medium', label: 'Moyenne', dot: 'bg-blue-400' },
-                    { value: 'low',    label: 'Basse',   dot: 'bg-slate-400' },
-                  ]).map((p) => (
-                    <button key={p.value} onClick={() => setFilterPriority(filterPriority === p.value ? null : p.value)}
-                      className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium transition ${filterPriority === p.value ? 'bg-blue-600 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}>
-                      <div className={`w-1.5 h-1.5 rounded-full ${p.dot}`} />
-                      {p.label}
+              <div style={{ padding: '4px 16px 8px' }}>
+                <p style={{ fontSize: '11px', fontWeight: 600, color: 'var(--gh-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px' }}>Priorité</p>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                  {[{ v: null, l: 'Toutes', c: 'var(--gh-text-primary)' },
+                    { v: 'urgent', l: 'Urgente', c: '#f85149' },
+                    { v: 'high',   l: 'Haute',   c: '#d29922' },
+                    { v: 'medium', l: 'Moyenne', c: '#58a6ff' },
+                    { v: 'low',    l: 'Basse',   c: '#6e7681' },
+                  ].map(p => (
+                    <button key={p.v ?? 'all'} onClick={() => setFilterPriority(p.v)}
+                      className="gh-btn gh-btn-sm"
+                      style={{ borderColor: filterPriority === p.v ? p.c : 'var(--gh-border-default)', color: filterPriority === p.v ? p.c : 'var(--gh-text-primary)' }}>
+                      {p.v && <span style={{ width: 8, height: 8, borderRadius: '50%', background: p.c, display: 'inline-block' }} />}
+                      {p.l}
                     </button>
                   ))}
                 </div>
@@ -339,69 +343,65 @@ export default function Board({ users, labels }: BoardProps) {
 
               {/* Labels */}
               {allLabels.length > 0 && (
-                <div>
-                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Label</p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {filterLabel && (
-                      <button onClick={() => setFilterLabel(null)}
-                        className="px-2.5 py-1 rounded-lg text-xs font-medium bg-blue-600 text-white transition">
-                        Tous
-                      </button>
-                    )}
-                    {allLabels.map((label) => {
-                      const LABEL_COLORS = ['#8b5cf6', '#ec4899', '#06b6d4', '#10b981', '#f97316', '#ef4444', '#f59e0b', '#3b82f6'];
-                      const color = labelMap[label] ?? (() => { let h = 0; for (const c of label) h = (h * 31 + c.charCodeAt(0)) & 0xff; return LABEL_COLORS[h % LABEL_COLORS.length]; })();
-                      return (
-                        <button key={label} onClick={() => setFilterLabel(filterLabel === label ? null : label)}
-                          className={`px-2.5 py-1 rounded-lg text-xs font-medium text-white transition border-2 ${filterLabel === label ? 'border-white/50' : 'border-transparent opacity-60 hover:opacity-90'}`}
-                          style={{ backgroundColor: color }}>
-                          {label}
-                        </button>
-                      );
-                    })}
+                <>
+                  <div style={{ height: '1px', background: 'var(--gh-border-muted)', margin: '0 0 8px' }} />
+                  <div style={{ padding: '0 16px 8px' }}>
+                    <p style={{ fontSize: '11px', fontWeight: 600, color: 'var(--gh-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px' }}>Labels</p>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                      {allLabels.map(label => {
+                        const ls = makeLabelStyle(getChipColor(label));
+                        const active = filterLabel === label;
+                        return (
+                          <button key={label} onClick={() => setFilterLabel(active ? null : label)}
+                            className="gh-label"
+                            style={{ ...ls, cursor: 'pointer', opacity: active ? 1 : 0.6, border: `1px solid ${ls.borderColor}`, outline: active ? `2px solid ${ls.color}50` : 'none', outlineOffset: '1px' }}
+                            onMouseEnter={e => (e.currentTarget.style.opacity = '1')}
+                            onMouseLeave={e => (e.currentTarget.style.opacity = active ? '1' : '0.6')}>
+                            {label}
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
-                </div>
+                </>
               )}
 
-              {(filterUserId || filterPriority || filterLabel) && (
-                <button onClick={() => { setFilterUserId(null); setFilterPriority(null); setFilterLabel(null); }}
-                  className="text-xs text-slate-500 hover:text-slate-300 transition underline w-full text-left">
-                  Effacer les filtres
-                </button>
+              {filterActive && (
+                <>
+                  <div style={{ height: '1px', background: 'var(--gh-border-muted)' }} />
+                  <button onClick={() => { setFilterUserId(null); setFilterPriority(null); setFilterLabel(null); }}
+                    className="gh-dropdown-item" style={{ color: 'var(--gh-danger-fg)', fontSize: '12px' }}>
+                    Effacer les filtres
+                  </button>
+                </>
               )}
             </div>
           )}
         </div>
 
-        {/* Sort dropdown */}
-        <div className="relative">
+        {/* Sort */}
+        <div style={{ position: 'relative' }}>
           {showSortMenu && <div className="fixed inset-0 z-10" onClick={() => setShowSortMenu(false)} />}
-          <button
-            onClick={() => { setShowSortMenu(!showSortMenu); setShowFilterMenu(false); }}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition border ${
-              sortMode !== 'position'
-                ? 'bg-blue-600/20 border-blue-500/50 text-blue-300'
-                : 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700'
-            }`}
-          >
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 6h18M7 12h10M11 18h2" /></svg>
-            {sortMode === 'position' ? 'Trier' : { priority: 'Priorité', due_date: 'Échéance', title: 'Titre A–Z' }[sortMode]}
-            <svg className="w-3 h-3 ml-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+          <button onClick={() => { setShowSortMenu(!showSortMenu); setShowFilterMenu(false); }}
+            className="gh-btn gh-btn-sm"
+            style={{ borderColor: sortMode !== 'position' ? 'var(--gh-accent-fg)' : 'var(--gh-border-default)', color: sortMode !== 'position' ? 'var(--gh-accent-fg)' : 'var(--gh-text-primary)' }}>
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M2 4.75a.75.75 0 01.75-.75h10.5a.75.75 0 010 1.5H2.75A.75.75 0 012 4.75zm0 5a.75.75 0 01.75-.75h6.5a.75.75 0 010 1.5h-6.5A.75.75 0 012 9.75zM2.75 13a.75.75 0 000 1.5h3.5a.75.75 0 000-1.5h-3.5z"/></svg>
+            {sortMode === 'position' ? 'Trier' : SORT_LABELS[sortMode]}
+            <svg width="10" height="6" viewBox="0 0 10 6" fill="currentColor"><path d="M0 0l5 6 5-6z" opacity=".5" /></svg>
           </button>
 
           {showSortMenu && (
-            <div className="absolute top-full mt-1.5 left-0 z-20 bg-slate-800 border border-slate-700 rounded-xl shadow-2xl py-1.5 w-44">
+            <div className="gh-dropdown absolute z-20 py-2" style={{ top: 'calc(100% + 4px)', left: 0 }}>
               {([
                 { value: 'position', label: 'Manuel' },
                 { value: 'priority', label: 'Priorité' },
                 { value: 'due_date', label: 'Échéance' },
                 { value: 'title',    label: 'Titre A–Z' },
-              ] as const).map((s) => (
-                <button key={s.value}
-                  onClick={() => { setSortMode(s.value); setShowSortMenu(false); }}
-                  className={`w-full text-left px-4 py-2 text-sm transition flex items-center gap-2 ${sortMode === s.value ? 'text-blue-300 bg-blue-600/10' : 'text-slate-300 hover:bg-slate-700'}`}>
-                  {sortMode === s.value && <span className="text-blue-400">✓</span>}
-                  {sortMode !== s.value && <span className="w-4" />}
+              ] as const).map(s => (
+                <button key={s.value} onClick={() => { setSortMode(s.value); setShowSortMenu(false); }}
+                  className={`gh-dropdown-item ${sortMode === s.value ? 'active' : ''}`}
+                  style={{ fontSize: '13px' }}>
+                  <span style={{ width: 16, textAlign: 'center', color: 'var(--gh-success-fg)' }}>{sortMode === s.value ? '✓' : ''}</span>
                   {s.label}
                 </button>
               ))}
@@ -409,12 +409,13 @@ export default function Board({ users, labels }: BoardProps) {
           )}
         </div>
 
-        {/* Active indicator */}
-        {(filterUserId || filterPriority || filterLabel || sortMode !== 'position') && (
+        {(filterActive || sortMode !== 'position') && (
           <>
-            <span className="text-xs text-slate-500">{visibleTasks.length} tâche{visibleTasks.length !== 1 ? 's' : ''}</span>
+            <span style={{ fontSize: '12px', color: 'var(--gh-text-muted)' }}>
+              {visibleTasks.length} résultat{visibleTasks.length !== 1 ? 's' : ''}
+            </span>
             <button onClick={() => { setFilterUserId(null); setFilterPriority(null); setFilterLabel(null); setSortMode('position'); }}
-              className="text-xs text-slate-500 hover:text-slate-300 transition underline">
+              style={{ background: 'none', border: 'none', fontSize: '12px', color: 'var(--gh-text-link)', cursor: 'pointer' }}>
               Réinitialiser
             </button>
           </>
@@ -422,11 +423,11 @@ export default function Board({ users, labels }: BoardProps) {
       </div>
 
       {/* Columns */}
-      <div className="flex flex-wrap gap-4 items-start">
+      <div className="flex flex-wrap gap-3 items-start">
         {sortedColumns.map((column, idx, arr) => (
           <div
             key={column.id}
-            className="flex-shrink-0 w-72"
+            style={{ flexShrink: 0, width: '280px' }}
             onDragOver={(e) => e.preventDefault()}
             onDrop={(e) => {
               if (e.dataTransfer.getData('dragType') === 'task' && draggedTask) {
@@ -456,49 +457,42 @@ export default function Board({ users, labels }: BoardProps) {
         ))}
 
         {/* Add column */}
-        <div className="flex-shrink-0 w-72">
+        <div style={{ flexShrink: 0, width: '280px' }}>
           {showColumnForm ? (
-            <div className="bg-slate-800 border border-slate-600 rounded-xl p-4 space-y-3">
-              <input
-                type="text"
-                placeholder="Nom de la colonne..."
-                value={newColumnName}
-                onChange={(e) => setNewColumnName(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') addColumn();
-                  if (e.key === 'Escape') setShowColumnForm(false);
-                }}
-                className="w-full px-3 py-2 rounded-lg bg-slate-700 text-slate-100 placeholder-slate-400 text-sm border border-slate-600 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                autoFocus
-              />
+            <div style={{ background: 'var(--gh-canvas-subtle)', border: '1px solid var(--gh-border-default)', borderRadius: '6px', padding: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <input type="text" placeholder="Nom de la colonne" value={newColumnName}
+                onChange={e => setNewColumnName(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') addColumn(); if (e.key === 'Escape') setShowColumnForm(false); }}
+                className="gh-input" autoFocus />
               <div>
-                <p className="text-xs text-slate-400 mb-2">Couleur</p>
-                <div className="flex items-center gap-2 flex-wrap">
-                  {PRESET_COLORS.map((c) => (
+                <p style={{ fontSize: '11px', fontWeight: 600, color: 'var(--gh-text-muted)', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Couleur</p>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                  {PRESET_COLORS.map(c => (
                     <button key={c} onClick={() => setNewColumnColor(c)}
-                      className="w-6 h-6 rounded-full border-2 transition hover:scale-110"
-                      style={{ backgroundColor: c, borderColor: newColumnColor === c ? 'white' : 'transparent' }} />
+                      style={{ width: '18px', height: '18px', borderRadius: '50%', background: c, cursor: 'pointer', border: newColumnColor === c ? '2px solid white' : '2px solid transparent', transition: 'transform 0.1s' }}
+                      onMouseEnter={e => (e.currentTarget.style.transform = 'scale(1.25)')}
+                      onMouseLeave={e => (e.currentTarget.style.transform = 'scale(1)')} />
                   ))}
-                  <input type="color" value={newColumnColor}
-                    onChange={(e) => setNewColumnColor(e.target.value)}
-                    className="w-6 h-6 rounded cursor-pointer" title="Couleur personnalisée" />
+                  <input type="color" value={newColumnColor} onChange={e => setNewColumnColor(e.target.value)}
+                    style={{ width: '18px', height: '18px', cursor: 'pointer', border: 'none', padding: 0, borderRadius: '50%' }} />
                 </div>
               </div>
-              <div className="flex gap-2">
-                <button onClick={addColumn}
-                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg text-sm font-medium transition">
-                  Ajouter
-                </button>
-                <button onClick={() => { setShowColumnForm(false); setNewColumnName(''); setNewColumnColor('#3b82f6'); }}
-                  className="flex-1 bg-slate-700 hover:bg-slate-600 text-slate-200 px-3 py-2 rounded-lg text-sm font-medium transition">
-                  Annuler
-                </button>
+              <div style={{ display: 'flex', gap: '6px' }}>
+                <button onClick={addColumn} className="gh-btn gh-btn-primary gh-btn-sm" style={{ flex: 1 }}>Ajouter</button>
+                <button onClick={() => { setShowColumnForm(false); setNewColumnName(''); setNewColumnColor('#58a6ff'); }}
+                  className="gh-btn gh-btn-sm" style={{ flex: 1 }}>Annuler</button>
               </div>
             </div>
           ) : (
             <button onClick={() => setShowColumnForm(true)}
-              className="w-full h-16 border-2 border-dashed border-slate-700 hover:border-slate-500 text-slate-500 hover:text-slate-300 rounded-xl text-sm font-medium transition">
-              + Nouvelle colonne
+              style={{
+                width: '100%', height: '80px', background: 'none', cursor: 'pointer',
+                border: '1px dashed var(--gh-border-default)', borderRadius: '6px',
+                color: 'var(--gh-text-muted)', fontSize: '13px', transition: 'border-color 0.12s, color 0.12s',
+              }}
+              onMouseEnter={e => { (e.currentTarget.style.borderColor = 'var(--gh-text-secondary)'); (e.currentTarget.style.color = 'var(--gh-text-secondary)'); }}
+              onMouseLeave={e => { (e.currentTarget.style.borderColor = 'var(--gh-border-default)'); (e.currentTarget.style.color = 'var(--gh-text-muted)'); }}>
+              + Ajouter une colonne
             </button>
           )}
         </div>

@@ -1,64 +1,28 @@
 import React, { useState } from 'react';
 import Task from './Task';
 
-interface User {
-  id: string;
-  name: string;
-  email: string;
-  avatar_url?: string;
-  avatar_data?: string;
-  created_at: string;
-}
-
-interface KanbanColumn {
-  id: string;
-  name: string;
-  position: number;
-  color?: string;
-}
-
+interface User { id: string; name: string; email: string; avatar_url?: string; avatar_data?: string; created_at: string; }
+interface KanbanColumn { id: string; name: string; position: number; color?: string; }
 interface TaskType {
-  id: string;
-  title: string;
-  description: string | null;
-  column_id: string;
-  assignee_id: string | null;
-  position: number;
-  due_date?: string | null;
-  priority?: string | null;
-  labels?: string[];
-  created_at: string;
-  updated_at: string;
-  assignee: User | null;
+  id: string; title: string; description: string | null;
+  column_id: string; assignee_id: string | null; position: number;
+  due_date?: string | null; priority?: string | null; labels?: string[];
+  created_at: string; updated_at: string; assignee: User | null;
 }
-
-interface Label {
-  id: string;
-  name: string;
-  color: string;
-}
+interface Label { id: string; name: string; color: string; }
 
 interface ColumnProps {
-  column: KanbanColumn;
-  tasks: TaskType[];
-  users: User[];
-  labelCatalog: Label[];
-  onAddTask: (columnId: string, title: string, description: string, assigneeId?: string | null) => void;
-  onDeleteTask: (taskId: string) => void;
-  onEditTask: (task: TaskType) => void;
-  onDeleteColumn: (columnId: string) => void;
-  onUpdateColor: (columnId: string, color: string) => void;
-  onRenameColumn: (columnId: string, name: string) => void;
-  onDropOnTask: (targetTaskId: string, above: boolean) => void;
-  onMoveLeft?: () => void;
-  onMoveRight?: () => void;
-  onDragStart: (task: TaskType) => void;
+  column: KanbanColumn; tasks: TaskType[]; users: User[]; labelCatalog: Label[];
+  onAddTask: (colId: string, title: string, desc: string, assigneeId?: string | null) => void;
+  onDeleteTask: (id: string) => void; onEditTask: (t: TaskType) => void;
+  onDeleteColumn: (id: string) => void; onUpdateColor: (id: string, color: string) => void;
+  onRenameColumn: (id: string, name: string) => void;
+  onDropOnTask: (targetId: string, above: boolean) => void;
+  onMoveLeft?: () => void; onMoveRight?: () => void;
+  onDragStart: (t: TaskType) => void;
 }
 
-const PRESET_COLORS = [
-  '#3b82f6', '#f59e0b', '#10b981', '#8b5cf6',
-  '#ef4444', '#06b6d4', '#f97316', '#ec4899',
-];
+const PRESET_COLORS = ['#58a6ff','#3fb950','#f85149','#d29922','#8957e5','#db61a2','#79c0ff','#56d364','#ffa657','#ff7b72'];
 
 export default function Column({
   column, tasks, users, labelCatalog,
@@ -83,138 +47,125 @@ export default function Column({
     }
   };
 
-  const startEditingName = () => {
-    setNameInput(column.name);
-    setEditingName(true);
-    setEditingColor(false);
-    setConfirmingDelete(false);
-  };
-
   const saveName = () => {
-    const trimmed = nameInput.trim();
-    if (trimmed && trimmed !== column.name) onRenameColumn(column.id, trimmed);
+    const t = nameInput.trim();
+    if (t && t !== column.name) onRenameColumn(column.id, t);
     setEditingName(false);
   };
 
-  const color = column.color || '#3b82f6';
-  const headerStyle = {
-    background: `linear-gradient(to right, ${color}33, ${color}11)`,
-    borderColor: `${color}44`,
-  };
+  const color = column.color || '#58a6ff';
 
   return (
-    <div className="bg-gradient-to-b from-slate-800 to-slate-900 rounded-xl flex flex-col shadow-lg border border-slate-700 hover:border-slate-600 transition group/col">
-      {/* Header */}
-      <div className="px-4 py-3 rounded-t-xl border-b flex items-center justify-between min-h-[48px]" style={headerStyle}>
+    <div style={{ display: 'flex', flexDirection: 'column', borderRadius: '6px', overflow: 'hidden', background: 'var(--gh-canvas-subtle)', border: '1px solid var(--gh-border-default)' }}>
+
+      {/* Column header */}
+      <div className="group/col" style={{
+        padding: '10px 12px',
+        borderBottom: `1px solid var(--gh-border-default)`,
+        display: 'flex', alignItems: 'center', gap: '8px', minHeight: '40px',
+        borderTop: `3px solid ${color}`,
+      }}>
         {confirmingDelete ? (
-          <div className="flex items-center gap-2 w-full">
-            <span className="text-xs text-slate-300 flex-1">Supprimer cette colonne ?</span>
-            <button onClick={() => onDeleteColumn(column.id)}
-              className="px-2 py-0.5 bg-red-600 hover:bg-red-700 text-white text-xs rounded font-medium transition">
-              Supprimer
-            </button>
-            <button onClick={() => setConfirmingDelete(false)}
-              className="px-2 py-0.5 bg-slate-600 hover:bg-slate-500 text-slate-200 text-xs rounded font-medium transition">
-              Annuler
-            </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1 }}>
+            <span style={{ fontSize: '12px', color: 'var(--gh-text-secondary)', flex: 1 }}>Supprimer ?</span>
+            <button onClick={() => onDeleteColumn(column.id)} className="gh-btn gh-btn-sm gh-btn-danger"
+              style={{ fontSize: '12px', padding: '2px 8px' }}>Oui</button>
+            <button onClick={() => setConfirmingDelete(false)} className="gh-btn gh-btn-sm"
+              style={{ fontSize: '12px', padding: '2px 8px' }}>Non</button>
           </div>
         ) : editingColor ? (
-          <div className="flex items-center gap-1.5 w-full flex-wrap">
-            {PRESET_COLORS.map((c) => (
-              <button key={c}
-                onClick={() => { onUpdateColor(column.id, c); setEditingColor(false); }}
-                className="w-5 h-5 rounded-full border-2 transition hover:scale-110"
-                style={{ backgroundColor: c, borderColor: color === c ? 'white' : 'transparent' }}
-              />
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flex: 1, flexWrap: 'wrap' }}>
+            {PRESET_COLORS.map(c => (
+              <button key={c} onClick={() => { onUpdateColor(column.id, c); setEditingColor(false); }}
+                style={{ width: '16px', height: '16px', borderRadius: '50%', background: c, cursor: 'pointer', border: color === c ? '2px solid white' : '2px solid transparent', transition: 'transform 0.1s' }}
+                onMouseEnter={e => (e.currentTarget.style.transform = 'scale(1.2)')}
+                onMouseLeave={e => (e.currentTarget.style.transform = 'scale(1)')} />
             ))}
-            <input type="color" value={color}
-              onChange={(e) => { onUpdateColor(column.id, e.target.value); setEditingColor(false); }}
-              className="w-5 h-5 rounded cursor-pointer" title="Couleur personnalisée" />
-            <button onClick={() => setEditingColor(false)} className="text-slate-400 hover:text-slate-200 text-xs ml-auto">✕</button>
+            <input type="color" value={color} onChange={e => { onUpdateColor(column.id, e.target.value); setEditingColor(false); }}
+              style={{ width: '16px', height: '16px', cursor: 'pointer', border: 'none', padding: 0 }} />
+            <button onClick={() => setEditingColor(false)} style={{ marginLeft: 'auto', background: 'none', border: 'none', color: 'var(--gh-text-muted)', cursor: 'pointer', fontSize: '14px' }}>×</button>
           </div>
         ) : (
           <>
-            <div className="flex items-center gap-2 min-w-0 flex-1">
-              <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flex: 1, minWidth: 0 }}>
               {editingName ? (
-                <input
-                  autoFocus
-                  value={nameInput}
-                  onChange={(e) => setNameInput(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === 'Enter') saveName(); if (e.key === 'Escape') setEditingName(false); }}
+                <input autoFocus value={nameInput} onChange={e => setNameInput(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') saveName(); if (e.key === 'Escape') setEditingName(false); }}
                   onBlur={saveName}
-                  className="text-sm font-semibold text-slate-100 bg-transparent border-b border-blue-400 focus:outline-none min-w-0 flex-1 py-0"
-                />
+                  style={{ background: 'var(--gh-canvas-default)', border: '1px solid var(--gh-accent-fg)', borderRadius: '4px', color: 'var(--gh-text-primary)', fontSize: '12px', fontWeight: 600, padding: '2px 6px', outline: 'none', flex: 1, minWidth: 0, boxShadow: '0 0 0 3px rgba(31,111,235,0.4)' }} />
               ) : (
-                <h2 className="text-sm font-semibold text-slate-100 truncate">{column.name}</h2>
+                <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--gh-text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {column.name}
+                </span>
               )}
-              <span className="text-xs text-slate-400 flex-shrink-0">{tasks.length}</span>
+              <span style={{
+                background: 'var(--gh-border-default)', color: 'var(--gh-text-secondary)',
+                borderRadius: '2em', padding: '0 6px', fontSize: '11px', fontWeight: 600, flexShrink: 0,
+              }}>{tasks.length}</span>
             </div>
-            <div className="flex items-center gap-1 opacity-0 group-hover/col:opacity-100 transition ml-2 flex-shrink-0">
+
+            {/* Controls — show on hover */}
+            <div className="opacity-0 group-hover/col:opacity-100 transition flex items-center gap-0.5 flex-shrink-0">
               {onMoveLeft && (
-                <button onClick={onMoveLeft} className="text-slate-500 hover:text-slate-200 text-sm px-1 transition" title="Déplacer à gauche">←</button>
+                <button onClick={onMoveLeft} className="gh-btn gh-btn-sm" style={{ padding: '2px 6px', fontSize: '12px' }}>←</button>
               )}
               {onMoveRight && (
-                <button onClick={onMoveRight} className="text-slate-500 hover:text-slate-200 text-sm px-1 transition" title="Déplacer à droite">→</button>
+                <button onClick={onMoveRight} className="gh-btn gh-btn-sm" style={{ padding: '2px 6px', fontSize: '12px' }}>→</button>
               )}
-              <button onClick={startEditingName} className="text-slate-500 hover:text-blue-400 text-sm px-1 transition" title="Renommer">✎</button>
-              <button onClick={() => setEditingColor(true)} className="text-slate-500 hover:text-slate-200 text-sm px-1 transition" title="Couleur">⬤</button>
-              <button onClick={() => setConfirmingDelete(true)} className="text-slate-600 hover:text-red-400 text-lg leading-none transition" title="Supprimer">×</button>
+              <button onClick={() => { setNameInput(column.name); setEditingName(true); setEditingColor(false); setConfirmingDelete(false); }}
+                className="gh-btn gh-btn-sm" style={{ padding: '2px 6px', fontSize: '12px' }}>✎</button>
+              <button onClick={() => setEditingColor(true)}
+                className="gh-btn gh-btn-sm" style={{ padding: '2px 6px' }}>
+                <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: color, display: 'inline-block' }} />
+              </button>
+              <button onClick={() => setConfirmingDelete(true)}
+                className="gh-btn gh-btn-sm" style={{ padding: '2px 6px', fontSize: '14px', lineHeight: 1 }}
+                onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--gh-danger-fg)'; }}
+                onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--gh-text-primary)'; }}>×</button>
             </div>
           </>
         )}
       </div>
 
       {/* Tasks */}
-      <div className="flex-1 overflow-y-auto p-3 space-y-2 min-h-24">
-        {tasks.map((task) => (
-          <Task
-            key={task.id}
-            task={task}
-            users={users}
-            onDelete={onDeleteTask}
-            onEdit={onEditTask}
-            onDragStart={onDragStart}
-            onDropOnTask={onDropOnTask}
-            labelCatalog={labelCatalog}
-          />
+      <div style={{ flex: 1, overflowY: 'auto', padding: '8px', display: 'flex', flexDirection: 'column', gap: '6px', minHeight: '80px' }}
+        onDragOver={e => e.preventDefault()}
+      >
+        {tasks.map(task => (
+          <Task key={task.id} task={task} users={users} labelCatalog={labelCatalog}
+            onDelete={onDeleteTask} onEdit={onEditTask}
+            onDragStart={onDragStart} onDropOnTask={onDropOnTask} />
         ))}
       </div>
 
       {/* Add task */}
-      <div className="p-3 border-t border-slate-700/50">
+      <div style={{ padding: '8px', borderTop: '1px solid var(--gh-border-muted)' }}>
         {showForm ? (
-          <form onSubmit={handleAddTask} className="bg-slate-700/50 rounded-lg p-3 space-y-2">
-            <input type="text" placeholder="Titre de la tâche..."
-              value={title} onChange={(e) => setTitle(e.target.value)}
-              className="w-full px-3 py-2 rounded-lg bg-slate-600 text-slate-100 placeholder-slate-400 text-sm border border-slate-500 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-              autoFocus />
-            <textarea placeholder="Description (optionnel)..."
-              value={description} onChange={(e) => setDescription(e.target.value)}
-              className="w-full px-3 py-2 rounded-lg bg-slate-600 text-slate-100 placeholder-slate-400 text-sm h-16 resize-none border border-slate-500 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" />
-            <select value={assigneeId || ''} onChange={(e) => setAssigneeId(e.target.value || null)}
-              className="w-full px-3 py-2 rounded-lg bg-slate-600 text-slate-100 text-sm border border-slate-500 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
+          <form onSubmit={handleAddTask} style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <input type="text" placeholder="Titre de la tâche" value={title}
+              onChange={e => setTitle(e.target.value)} className="gh-input" autoFocus />
+            <textarea placeholder="Description (optionnel)" value={description}
+              onChange={e => setDescription(e.target.value)} className="gh-input" style={{ height: '56px', resize: 'none' }} />
+            <select value={assigneeId || ''} onChange={e => setAssigneeId(e.target.value || null)} className="gh-input">
               <option value="">Non assigné</option>
-              {users.map((user) => (
-                <option key={user.id} value={user.id}>{user.name}</option>
-              ))}
+              {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
             </select>
-            <div className="flex gap-2">
-              <button type="submit"
-                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition">
-                Ajouter
-              </button>
-              <button type="button"
-                onClick={() => { setShowForm(false); setTitle(''); setDescription(''); setAssigneeId(null); }}
-                className="flex-1 bg-slate-600 hover:bg-slate-500 text-slate-200 px-3 py-1.5 rounded-lg text-sm font-medium transition">
-                Annuler
-              </button>
+            <div style={{ display: 'flex', gap: '6px' }}>
+              <button type="submit" className="gh-btn gh-btn-primary gh-btn-sm" style={{ flex: 1 }}>Ajouter</button>
+              <button type="button" onClick={() => { setShowForm(false); setTitle(''); setDescription(''); setAssigneeId(null); }}
+                className="gh-btn gh-btn-sm" style={{ flex: 1 }}>Annuler</button>
             </div>
           </form>
         ) : (
           <button onClick={() => setShowForm(true)}
-            className="w-full hover:bg-slate-700/50 text-slate-500 hover:text-slate-300 py-1.5 rounded-lg text-sm transition border border-transparent hover:border-slate-600">
-            + Ajouter une tâche
+            style={{
+              width: '100%', padding: '4px 8px', fontSize: '12px', cursor: 'pointer',
+              background: 'none', border: '1px dashed var(--gh-border-default)', borderRadius: '6px',
+              color: 'var(--gh-text-muted)', transition: 'border-color 0.12s, color 0.12s',
+            }}
+            onMouseEnter={e => { (e.currentTarget.style.borderColor = 'var(--gh-text-secondary)'); (e.currentTarget.style.color = 'var(--gh-text-secondary)'); }}
+            onMouseLeave={e => { (e.currentTarget.style.borderColor = 'var(--gh-border-default)'); (e.currentTarget.style.color = 'var(--gh-text-muted)'); }}>
+            + Ajouter un élément
           </button>
         )}
       </div>
