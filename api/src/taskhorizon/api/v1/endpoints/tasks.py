@@ -49,7 +49,8 @@ def get_task(task_id: str, db: Session = Depends(get_db)):
     task = db.query(Task).filter(Task.id == task_id).first()
     if not task:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Task not found"
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Task not found",
         )
     return task
 
@@ -60,7 +61,8 @@ def update_task(task_id: str, task_update: TaskUpdate, db: Session = Depends(get
     task = db.query(Task).filter(Task.id == task_id).first()
     if not task:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Task not found"
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Task not found",
         )
 
     if task_update.title is not None:
@@ -69,6 +71,8 @@ def update_task(task_id: str, task_update: TaskUpdate, db: Session = Depends(get
         task.description = task_update.description
     if task_update.assignee_id is not None:
         task.assignee_id = task_update.assignee_id
+    if task_update.due_date is not None:
+        task.due_date = task_update.due_date
 
     db.commit()
     db.refresh(task)
@@ -81,7 +85,8 @@ def move_task(task_id: str, move: TaskMoveSchema, db: Session = Depends(get_db))
     task = db.query(Task).filter(Task.id == task_id).first()
     if not task:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Task not found"
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Task not found",
         )
 
     old_column_id = task.column_id
@@ -140,7 +145,8 @@ def delete_task(task_id: str, db: Session = Depends(get_db)):
     task = db.query(Task).filter(Task.id == task_id).first()
     if not task:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Task not found"
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Task not found",
         )
 
     column_id = task.column_id

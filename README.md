@@ -5,6 +5,7 @@ A minimalist Kanban manager built as a **full-stack portfolio project** demonstr
 ## 📋 Project Overview
 
 **TaskHorizon** showcases:
+
 - **Backend**: FastAPI + PostgreSQL with clean architecture
 - **Frontend**: React + TypeScript + Vite + Tailwind CSS
 - **Infrastructure**: Kubernetes (EKS) + Helm + Terraform
@@ -12,6 +13,7 @@ A minimalist Kanban manager built as a **full-stack portfolio project** demonstr
 - **Code Quality**: Pre-commit hooks, pytest, ESLint
 
 This project serves as proof of competency for:
+
 - Senior Developer / Junior DevOps roles
 - Infrastructure as Code (Terraform)
 - Container orchestration (Kubernetes/Helm)
@@ -21,6 +23,7 @@ This project serves as proof of competency for:
 ## 🚀 Quick Start
 
 ### Prerequisites
+
 - Docker & Docker Compose
 - Python 3.12+ (for local development)
 - Node.js 20+ & Yarn (for web development)
@@ -50,8 +53,8 @@ yarn dev
 
 ### Access
 
-- **Frontend**: http://localhost:5173
-- **API Docs**: http://localhost:8000/docs
+- **Frontend**: <http://localhost:5173>
+- **API Docs**: <http://localhost:8000/docs>
 - **Database**: localhost:5432 (postgres/postgres)
 
 ## 📁 Project Structure
@@ -134,8 +137,8 @@ All deployments are **push-based** via GitHub Actions:
 
 ## 📚 Documentation
 
-- **Blog Article**: Full writeup at https://delpeuch.net/docs/projects/personnel/
-- **Learning Path**: See https://delpeuch.net/blog/tags/cloud
+- **Blog Article**: Full writeup at <https://delpeuch.net/docs/projects/personnel/>
+- **Learning Path**: See <https://delpeuch.net/blog/tags/cloud>
 
 ## 🤝 Contributing
 

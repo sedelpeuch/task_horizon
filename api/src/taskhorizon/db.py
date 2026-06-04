@@ -2,7 +2,7 @@
 
 from os import getenv
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 
 from taskhorizon.models import Base, Column
@@ -27,17 +27,22 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 def init_db():
     """Initialize database tables and seed default data."""
-    # Create all tables
     Base.metadata.create_all(bind=engine)
 
-    # Seed default columns if they don't exist
+    # Add color column if it doesn't exist (migration for existing tables)
+    with engine.connect() as conn:
+        conn.execute(text(
+            "ALTER TABLE columns ADD COLUMN IF NOT EXISTS color VARCHAR(20) DEFAULT '#3b82f6'"
+        ))
+        conn.commit()
+
     db = SessionLocal()
     try:
         if db.query(Column).count() == 0:
             columns = [
-                Column(name="Todo", position=0),
-                Column(name="In Progress", position=1),
-                Column(name="Done", position=2),
+                Column(name="Todo", position=0, color="#3b82f6"),
+                Column(name="In Progress", position=1, color="#f59e0b"),
+                Column(name="Done", position=2, color="#10b981"),
             ]
             db.add_all(columns)
             db.commit()
