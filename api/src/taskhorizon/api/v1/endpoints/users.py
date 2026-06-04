@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from sqlalchemy.orm import Session
 
 from taskhorizon.db import get_db
-from taskhorizon.models import User
+from taskhorizon.models import Task, User
 from taskhorizon.schemas import UserCreate, UserResponse, UserUpdate
 
 router = APIRouter(prefix="/users", tags=["users"])
@@ -77,14 +77,13 @@ def delete_user(user_id: str, db: Session = Depends(get_db)):
             detail="User not found",
         )
 
+    db.query(Task).filter(Task.assignee_id == user_id).update({"assignee_id": None})
     db.delete(user)
     db.commit()
 
 
 @router.post("/{user_id}/avatar", response_model=UserResponse)
-async def upload_avatar(
-    user_id: str, file: UploadFile = File(...), db: Session = Depends(get_db)
-):
+async def upload_avatar(user_id: str, file: UploadFile = File(...), db: Session = Depends(get_db)):
     """Upload avatar image for a user."""
     user = db.query(User).filter(User.id == user_id).first()
     if not user:

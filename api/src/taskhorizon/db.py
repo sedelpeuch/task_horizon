@@ -31,9 +31,9 @@ def init_db():
 
     # Add color column if it doesn't exist (migration for existing tables)
     with engine.connect() as conn:
-        conn.execute(text(
-            "ALTER TABLE columns ADD COLUMN IF NOT EXISTS color VARCHAR(20) DEFAULT '#3b82f6'"
-        ))
+        conn.execute(
+            text("ALTER TABLE columns ADD COLUMN IF NOT EXISTS color VARCHAR(20) DEFAULT '#3b82f6'")
+        )
         conn.commit()
 
     db = SessionLocal()

@@ -45,9 +45,6 @@ exclude = [".venv", "venv", ".git"]
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "UP", "N"]
 
-[tool.ruff.format]
-line-length = 100
-
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"

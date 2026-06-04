@@ -33,7 +33,6 @@ interface Task {
 
 interface BoardProps {
   users: User[];
-  setUsers: React.Dispatch<React.SetStateAction<User[]>>;
 }
 
 const PRESET_COLORS = [
@@ -53,6 +52,12 @@ export default function Board({ users }: BoardProps) {
   const [showColumnForm, setShowColumnForm] = useState(false);
   const [newColumnName, setNewColumnName] = useState('');
   const [newColumnColor, setNewColumnColor] = useState('#3b82f6');
+  const [filterUserId, setFilterUserId] = useState<string | null>(null);
+
+  const fetchTasks = async () => {
+    const res = await fetch(`${API_URL}/tasks`);
+    if (res.ok) setTasks(await res.json());
+  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -101,15 +106,40 @@ export default function Board({ users }: BoardProps) {
     setTasks((prev) => prev.map((t) => (t.id === taskId ? updated : t)));
   };
 
-  const moveTask = async (taskId: string, newColumnId: string, newPosition: number) => {
+  const moveTask = async (taskId: string, targetColumnId: string, targetPosition: number) => {
     const res = await fetch(`${API_URL}/tasks/${taskId}/move`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ column_id: newColumnId, position: newPosition }),
+      body: JSON.stringify({ column_id: targetColumnId, position: targetPosition }),
     });
     if (!res.ok) return;
-    const updated = await res.json();
-    setTasks((prev) => prev.map((t) => (t.id === taskId ? updated : t)));
+    // Refetch to get correct positions for all shifted tasks
+    await fetchTasks();
+  };
+
+  const handleDropOnTask = (targetTaskId: string, above: boolean) => {
+    if (!draggedTask || draggedTask.id === targetTaskId) {
+      setDraggedTask(null);
+      return;
+    }
+    const targetTask = tasks.find((t) => t.id === targetTaskId);
+    if (!targetTask) return;
+
+    const columnTasks = tasks
+      .filter((t) => t.column_id === targetTask.column_id)
+      .sort((a, b) => a.position - b.position);
+
+    const targetIdx = columnTasks.findIndex((t) => t.id === targetTaskId);
+    let newPosition: number;
+    if (above) {
+      newPosition = targetTask.position;
+    } else {
+      const nextTask = columnTasks[targetIdx + 1];
+      newPosition = nextTask ? nextTask.position : targetTask.position + 1;
+    }
+
+    moveTask(draggedTask.id, targetTask.column_id, newPosition);
+    setDraggedTask(null);
   };
 
   const addColumn = async () => {
@@ -135,13 +165,25 @@ export default function Board({ users }: BoardProps) {
   };
 
   const updateColumnColor = async (columnId: string, color: string) => {
-    // Optimistic update
     setColumns((prev) => prev.map((c) => (c.id === columnId ? { ...c, color } : c)));
     await fetch(`${API_URL}/columns/${columnId}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ color }),
     });
+  };
+
+  const renameColumn = async (columnId: string, name: string) => {
+    const prevName = columns.find((c) => c.id === columnId)?.name;
+    setColumns((prev) => prev.map((c) => (c.id === columnId ? { ...c, name } : c)));
+    const res = await fetch(`${API_URL}/columns/${columnId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name }),
+    });
+    if (!res.ok && prevName) {
+      setColumns((prev) => prev.map((c) => (c.id === columnId ? { ...c, name: prevName } : c)));
+    }
   };
 
   const moveColumn = async (columnId: string, direction: 'left' | 'right') => {
@@ -154,34 +196,80 @@ export default function Board({ users }: BoardProps) {
     const swapCol = sorted[swapIdx];
 
     setColumns((prev) =>
-      prev.map((c) => {
-        if (c.id === col.id) return { ...c, position: swapCol.position };
-        if (c.id === swapCol.id) return { ...c, position: col.position };
-        return c;
-      }).sort((a, b) => a.position - b.position)
+      prev
+        .map((c) => {
+          if (c.id === col.id) return { ...c, position: swapCol.position };
+          if (c.id === swapCol.id) return { ...c, position: col.position };
+          return c;
+        })
+        .sort((a, b) => a.position - b.position)
     );
 
-    await Promise.all([
-      fetch(`${API_URL}/columns/${col.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ position: swapCol.position }),
-      }),
-      fetch(`${API_URL}/columns/${swapCol.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ position: col.position }),
-      }),
-    ]);
+    await fetch(`${API_URL}/columns/${col.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ position: swapCol.position }),
+    });
+    await fetch(`${API_URL}/columns/${swapCol.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ position: col.position }),
+    });
   };
 
-  if (loading) return <div className="p-4 text-slate-400">Loading board...</div>;
-  if (error) return <div className="p-4 text-red-400">Error: {error}</div>;
+  if (loading) return <div className="p-4 text-slate-400">Chargement du tableau...</div>;
+  if (error) return <div className="p-4 text-red-400">Erreur : {error}</div>;
+
+  const sortedColumns = [...columns].sort((a, b) => a.position - b.position);
+  const visibleTasks = filterUserId ? tasks.filter((t) => t.assignee_id === filterUserId) : tasks;
 
   return (
     <div className="w-full">
+      {/* Filter bar */}
+      {users.length > 0 && (
+        <div className="flex items-center gap-2 mb-5 flex-wrap">
+          <span className="text-xs text-slate-500 mr-1">Filtrer :</span>
+          <button
+            onClick={() => setFilterUserId(null)}
+            className={`px-3 py-1 rounded-full text-xs font-medium transition ${
+              filterUserId === null
+                ? 'bg-blue-600 text-white'
+                : 'bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700'
+            }`}
+          >
+            Tous
+          </button>
+          {users.map((user) => (
+            <button
+              key={user.id}
+              onClick={() => setFilterUserId(filterUserId === user.id ? null : user.id)}
+              className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium transition ${
+                filterUserId === user.id
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700'
+              }`}
+            >
+              {user.avatar_data || user.avatar_url ? (
+                <img src={user.avatar_data || user.avatar_url} alt={user.name} className="w-4 h-4 rounded-full object-cover" />
+              ) : (
+                <div className="w-4 h-4 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold" style={{ fontSize: '9px' }}>
+                  {user.name.charAt(0).toUpperCase()}
+                </div>
+              )}
+              {user.name}
+            </button>
+          ))}
+          {filterUserId && (
+            <span className="text-xs text-slate-500 ml-1">
+              {visibleTasks.length} tâche{visibleTasks.length !== 1 ? 's' : ''}
+            </span>
+          )}
+        </div>
+      )}
+
+      {/* Columns */}
       <div className="flex flex-wrap gap-4 items-start">
-        {columns.sort((a, b) => a.position - b.position).map((column, idx, arr) => (
+        {sortedColumns.map((column, idx, arr) => (
           <div
             key={column.id}
             className="flex-shrink-0 w-72"
@@ -196,13 +284,17 @@ export default function Board({ users }: BoardProps) {
           >
             <Column
               column={column}
-              tasks={tasks.filter((t) => t.column_id === column.id).sort((a, b) => a.position - b.position)}
+              tasks={visibleTasks
+                .filter((t) => t.column_id === column.id)
+                .sort((a, b) => a.position - b.position)}
               users={users}
               onAddTask={addTask}
               onDeleteTask={deleteTask}
               onEditTask={setSelectedTask}
               onDeleteColumn={deleteColumn}
               onUpdateColor={updateColumnColor}
+              onRenameColumn={renameColumn}
+              onDropOnTask={handleDropOnTask}
               onMoveLeft={idx > 0 ? () => moveColumn(column.id, 'left') : undefined}
               onMoveRight={idx < arr.length - 1 ? () => moveColumn(column.id, 'right') : undefined}
               onDragStart={setDraggedTask}
@@ -216,7 +308,7 @@ export default function Board({ users }: BoardProps) {
             <div className="bg-slate-800 border border-slate-600 rounded-xl p-4 space-y-3">
               <input
                 type="text"
-                placeholder="Column name..."
+                placeholder="Nom de la colonne..."
                 value={newColumnName}
                 onChange={(e) => setNewColumnName(e.target.value)}
                 onKeyDown={(e) => {
@@ -227,42 +319,33 @@ export default function Board({ users }: BoardProps) {
                 autoFocus
               />
               <div>
-                <p className="text-xs text-slate-400 mb-2">Color</p>
+                <p className="text-xs text-slate-400 mb-2">Couleur</p>
                 <div className="flex items-center gap-2 flex-wrap">
                   {PRESET_COLORS.map((c) => (
-                    <button
-                      key={c}
-                      onClick={() => setNewColumnColor(c)}
+                    <button key={c} onClick={() => setNewColumnColor(c)}
                       className="w-6 h-6 rounded-full border-2 transition hover:scale-110"
-                      style={{ backgroundColor: c, borderColor: newColumnColor === c ? 'white' : 'transparent' }}
-                    />
+                      style={{ backgroundColor: c, borderColor: newColumnColor === c ? 'white' : 'transparent' }} />
                   ))}
-                  <input
-                    type="color"
-                    value={newColumnColor}
+                  <input type="color" value={newColumnColor}
                     onChange={(e) => setNewColumnColor(e.target.value)}
-                    className="w-6 h-6 rounded cursor-pointer"
-                    title="Custom color"
-                  />
+                    className="w-6 h-6 rounded cursor-pointer" title="Couleur personnalisée" />
                 </div>
               </div>
               <div className="flex gap-2">
                 <button onClick={addColumn}
                   className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg text-sm font-medium transition">
-                  Add
+                  Ajouter
                 </button>
                 <button onClick={() => { setShowColumnForm(false); setNewColumnName(''); setNewColumnColor('#3b82f6'); }}
                   className="flex-1 bg-slate-700 hover:bg-slate-600 text-slate-200 px-3 py-2 rounded-lg text-sm font-medium transition">
-                  Cancel
+                  Annuler
                 </button>
               </div>
             </div>
           ) : (
-            <button
-              onClick={() => setShowColumnForm(true)}
-              className="w-full h-16 border-2 border-dashed border-slate-600 hover:border-slate-400 text-slate-400 hover:text-slate-200 rounded-xl text-sm font-medium transition"
-            >
-              + New Column
+            <button onClick={() => setShowColumnForm(true)}
+              className="w-full h-16 border-2 border-dashed border-slate-700 hover:border-slate-500 text-slate-500 hover:text-slate-300 rounded-xl text-sm font-medium transition">
+              + Nouvelle colonne
             </button>
           )}
         </div>

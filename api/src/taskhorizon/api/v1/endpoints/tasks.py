@@ -22,8 +22,7 @@ def create_task(task: TaskCreate, db: Session = Depends(get_db)):
     """Create a new task."""
     # Get max position in the column
     max_position = (
-        db
-        .query(Task)
+        db.query(Task)
         .filter(Task.column_id == task.column_id)
         .order_by(Task.position.desc())
         .first()

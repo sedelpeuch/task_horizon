@@ -3,7 +3,7 @@
 import base64
 from datetime import datetime
 
-from pydantic import BaseModel, EmailStr, computed_field, model_validator
+from pydantic import BaseModel, EmailStr, model_validator
 
 
 class UserCreate(BaseModel):
