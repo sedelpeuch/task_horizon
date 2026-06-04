@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
 interface User { id: string; name: string; email: string; avatar_url?: string; avatar_data?: string; created_at: string; }
 interface Label { id: string; name: string; color: string; }
@@ -51,7 +51,9 @@ export default function TaskModal({ task, users, labelCatalog, onSave, onClose }
   const [priority, setPriority] = useState<string | null>(task?.priority ?? null);
   const [labels, setLabels] = useState<string[]>(task?.labels || []);
   const [labelInput, setLabelInput] = useState('');
-  const [saving, setSaving] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'unsaved'>('saved');
+  const saveTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const lastSavedRef = useRef<{ title: string; description: string | null; dueDate: string; assigneeId: string; priority: string | null; labels: string[] } | null>(null);
 
   if (!task) return null;
 
@@ -61,12 +63,68 @@ export default function TaskModal({ task, users, labelCatalog, onSave, onClose }
     setLabelInput('');
   };
 
-  const handleSave = async () => {
-    setSaving(true);
+  const autoSave = async (titleVal: string, descVal: string, dueDateVal: string, assigneeVal: string, priorityVal: string | null, labelsVal: string[]) => {
+    const updates = {
+      title: titleVal || task.title,
+      description: descVal || null,
+      due_date: dueDateVal ? new Date(dueDateVal).toISOString() : null,
+      assignee_id: assigneeVal || null,
+      priority: priorityVal,
+      labels: labelsVal
+    };
+
     try {
-      await onSave(task.id, { title: title || task.title, description: description || null, due_date: dueDate ? new Date(dueDate).toISOString() : null, assignee_id: assigneeId || null, priority, labels });
-      onClose();
-    } catch (err) { console.error(err); } finally { setSaving(false); }
+      setSaveStatus('saving');
+      await onSave(task.id, updates);
+      lastSavedRef.current = { title: titleVal, description: descVal, dueDate: dueDateVal, assigneeId: assigneeVal, priority: priorityVal, labels: labelsVal };
+      setSaveStatus('saved');
+    } catch (err) {
+      console.error('Save failed:', err);
+    }
+  };
+
+  const scheduleAutoSave = (titleVal: string, descVal: string, dueDateVal: string, assigneeVal: string, priorityVal: string | null, labelsVal: string[]) => {
+    setSaveStatus('unsaved');
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => {
+      autoSave(titleVal, descVal, dueDateVal, assigneeVal, priorityVal, labelsVal);
+    }, 800);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    };
+  }, []);
+
+  const handleTitleChange = (val: string) => {
+    setTitle(val);
+    scheduleAutoSave(val, description, dueDate, assigneeId, priority, labels);
+  };
+
+  const handleDescriptionChange = (val: string) => {
+    setDescription(val);
+    scheduleAutoSave(title, val, dueDate, assigneeId, priority, labels);
+  };
+
+  const handleDueDateChange = (val: string) => {
+    setDueDate(val);
+    scheduleAutoSave(title, description, val, assigneeId, priority, labels);
+  };
+
+  const handleAssigneeChange = (val: string) => {
+    setAssigneeId(val);
+    scheduleAutoSave(title, description, dueDate, val, priority, labels);
+  };
+
+  const handlePriorityChange = (val: string | null) => {
+    setPriority(val);
+    scheduleAutoSave(title, description, dueDate, assigneeId, val, labels);
+  };
+
+  const handleLabelsChange = (newLabels: string[]) => {
+    setLabels(newLabels);
+    scheduleAutoSave(title, description, dueDate, assigneeId, priority, newLabels);
   };
 
   const getCatalogColor = (name: string) => labelCatalog.find(l => l.name === name)?.color ?? hashColor(name);
@@ -87,7 +145,12 @@ export default function TaskModal({ task, users, labelCatalog, onSave, onClose }
 
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px', borderBottom: '1px solid var(--gh-border-default)' }}>
-          <span style={{ fontSize: '16px', fontWeight: 600, color: 'var(--gh-text-primary)' }}>Modifier la tâche</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontSize: '16px', fontWeight: 600, color: 'var(--gh-text-primary)' }}>Modifier la tâche</span>
+            <span style={{ fontSize: '12px', color: saveStatus === 'saved' ? 'var(--gh-success-fg)' : saveStatus === 'saving' ? 'var(--gh-text-muted)' : 'var(--gh-text-muted)' }}>
+              {saveStatus === 'saved' ? '✓ Enregistré' : saveStatus === 'saving' ? '⟳ Enregistrement…' : '• Non enregistré'}
+            </span>
+          </div>
           <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--gh-text-muted)', fontSize: '18px', cursor: 'pointer', lineHeight: 1, padding: '2px' }}
             onMouseEnter={e => (e.currentTarget.style.color = 'var(--gh-text-primary)')}
             onMouseLeave={e => (e.currentTarget.style.color = 'var(--gh-text-muted)')}>×</button>
@@ -97,13 +160,13 @@ export default function TaskModal({ task, users, labelCatalog, onSave, onClose }
           {/* Title */}
           <div>
             <FieldLabel>Titre</FieldLabel>
-            <input value={title} onChange={e => setTitle(e.target.value)} className="gh-input" style={{ fontSize: '14px' }} placeholder="Titre de la tâche" />
+            <input value={title} onChange={e => handleTitleChange(e.target.value)} className="gh-input" style={{ fontSize: '14px' }} placeholder="Titre de la tâche" />
           </div>
 
           {/* Description */}
           <div>
             <FieldLabel>Description</FieldLabel>
-            <textarea value={description} onChange={e => setDescription(e.target.value)}
+            <textarea value={description} onChange={e => handleDescriptionChange(e.target.value)}
               className="gh-input" style={{ height: '80px', lineHeight: '1.5' }} placeholder="Description optionnelle" />
           </div>
 
@@ -113,12 +176,12 @@ export default function TaskModal({ task, users, labelCatalog, onSave, onClose }
           <div>
             <FieldLabel>Priorité</FieldLabel>
             <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-              <button onClick={() => setPriority(null)} className="gh-btn gh-btn-sm"
+              <button onClick={() => handlePriorityChange(null)} className="gh-btn gh-btn-sm"
                 style={{ borderColor: priority === null ? 'var(--gh-accent-fg)' : 'var(--gh-border-default)', color: priority === null ? 'var(--gh-accent-fg)' : 'var(--gh-text-primary)' }}>
                 Aucune
               </button>
               {PRIORITIES.map(p => (
-                <button key={p.value} onClick={() => setPriority(priority === p.value ? null : p.value)}
+                <button key={p.value} onClick={() => handlePriorityChange(priority === p.value ? null : p.value)}
                   className="gh-btn gh-btn-sm"
                   style={{
                     background: priority === p.value ? p.bg : 'var(--gh-btn-bg)',
@@ -141,7 +204,10 @@ export default function TaskModal({ task, users, labelCatalog, onSave, onClose }
                   const active = labels.includes(l.name);
                   const ls = makeLabelStyle(l.color);
                   return (
-                    <button key={l.id} onClick={() => setLabels(active ? labels.filter(x => x !== l.name) : [...labels, l.name])}
+                    <button key={l.id} onClick={() => {
+                      const newLabels = active ? labels.filter(x => x !== l.name) : [...labels, l.name];
+                      handleLabelsChange(newLabels);
+                    }}
                       className="gh-label"
                       style={{
                         ...ls, cursor: 'pointer',
@@ -167,7 +233,10 @@ export default function TaskModal({ task, users, labelCatalog, onSave, onClose }
                   return (
                     <span key={label} className="gh-label" style={{ ...ls, cursor: 'default', border: `1px solid ${ls.borderColor}` }}>
                       {label}
-                      <button onClick={() => setLabels(labels.filter(l => l !== label))}
+                      <button onClick={() => {
+                        const newLabels = labels.filter(l => l !== label);
+                        handleLabelsChange(newLabels);
+                      }}
                         style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', marginLeft: '4px', opacity: 0.7, lineHeight: 1 }}>×</button>
                     </span>
                   );
@@ -176,9 +245,9 @@ export default function TaskModal({ task, users, labelCatalog, onSave, onClose }
             )}
             <div style={{ display: 'flex', gap: '6px' }}>
               <input value={labelInput} onChange={e => setLabelInput(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addLabel(); } }}
+                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); const t = labelInput.trim().toLowerCase(); if (t && !labels.includes(t)) { handleLabelsChange([...labels, t]); setLabelInput(''); } } }}
                 className="gh-input" placeholder="Ajouter un label..." style={{ flex: 1 }} />
-              <button onClick={addLabel} className="gh-btn gh-btn-sm">+</button>
+              <button onClick={() => { const t = labelInput.trim().toLowerCase(); if (t && !labels.includes(t)) { handleLabelsChange([...labels, t]); setLabelInput(''); } }} className="gh-btn gh-btn-sm">+</button>
             </div>
           </div>
 
@@ -188,7 +257,7 @@ export default function TaskModal({ task, users, labelCatalog, onSave, onClose }
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
             <div>
               <FieldLabel>Échéance</FieldLabel>
-              <input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} className="gh-input" />
+              <input type="date" value={dueDate} onChange={e => handleDueDateChange(e.target.value)} className="gh-input" />
               {dueDate && (
                 <p style={{ fontSize: '12px', color: isOverdue ? 'var(--gh-danger-fg)' : 'var(--gh-text-muted)', marginTop: '4px' }}>
                   {new Date(dueDate).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}{isOverdue && ' — En retard'}
@@ -197,7 +266,7 @@ export default function TaskModal({ task, users, labelCatalog, onSave, onClose }
             </div>
             <div>
               <FieldLabel>Assigné à</FieldLabel>
-              <select value={assigneeId} onChange={e => setAssigneeId(e.target.value)} className="gh-input">
+              <select value={assigneeId} onChange={e => handleAssigneeChange(e.target.value)} className="gh-input">
                 <option value="">Non assigné</option>
                 {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
               </select>
@@ -229,9 +298,7 @@ export default function TaskModal({ task, users, labelCatalog, onSave, onClose }
 
           {/* Actions */}
           <div style={{ display: 'flex', gap: '8px', paddingTop: '4px' }}>
-            <button onClick={handleSave} disabled={saving} className="gh-btn gh-btn-primary"
-              style={{ flex: 1 }}>{saving ? 'Sauvegarde…' : 'Sauvegarder'}</button>
-            <button onClick={onClose} className="gh-btn" style={{ flex: 1 }}>Annuler</button>
+            <button onClick={onClose} className="gh-btn gh-btn-primary" style={{ flex: 1 }}>Fermer</button>
           </div>
         </div>
       </div>
