@@ -25,6 +25,7 @@ app = FastAPI(
     description="A minimalist Kanban manager API",
     version="0.1.0",
     lifespan=lifespan,
+    redirect_slashes=False,
 )
 
 # CORS middleware
