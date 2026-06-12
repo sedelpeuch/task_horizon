@@ -18,14 +18,14 @@ class ColumnCreate(BaseModel):
     color: str | None = "#3b82f6"
 
 
-@router.get("/", response_model=list[ColumnResponse])
+@router.get("", response_model=list[ColumnResponse])
 def list_columns(db: Session = Depends(get_db)):
     """List all columns."""
     columns = db.query(Column).order_by(Column.position).all()
     return columns
 
 
-@router.post("/", response_model=ColumnResponse, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=ColumnResponse, status_code=status.HTTP_201_CREATED)
 def create_column(column_data: ColumnCreate, db: Session = Depends(get_db)):
     """Create a new column."""
     # Get max position

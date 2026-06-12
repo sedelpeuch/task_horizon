@@ -10,13 +10,13 @@ from taskhorizon.schemas import LabelCreate, LabelResponse, LabelUpdate
 router = APIRouter(prefix="/labels", tags=["labels"])
 
 
-@router.get("/", response_model=list[LabelResponse])
+@router.get("", response_model=list[LabelResponse])
 def list_labels(db: Session = Depends(get_db)):
     """List all labels."""
     return db.query(Label).order_by(Label.name).all()
 
 
-@router.post("/", response_model=LabelResponse, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=LabelResponse, status_code=status.HTTP_201_CREATED)
 def create_label(label_data: LabelCreate, db: Session = Depends(get_db)):
     """Create a new label."""
     existing = db.query(Label).filter(Label.name == label_data.name).first()

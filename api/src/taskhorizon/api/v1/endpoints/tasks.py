@@ -10,14 +10,14 @@ from taskhorizon.schemas import TaskCreate, TaskMoveSchema, TaskResponse, TaskUp
 router = APIRouter(prefix="/tasks", tags=["tasks"])
 
 
-@router.get("/", response_model=list[TaskResponse])
+@router.get("", response_model=list[TaskResponse])
 def list_tasks(db: Session = Depends(get_db)):
     """List all tasks."""
     tasks = db.query(Task).order_by(Task.column_id, Task.position).all()
     return tasks
 
 
-@router.post("/", response_model=TaskResponse, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=TaskResponse, status_code=status.HTTP_201_CREATED)
 def create_task(task: TaskCreate, db: Session = Depends(get_db)):
     """Create a new task."""
     # Get max position in the column

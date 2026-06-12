@@ -10,14 +10,14 @@ from taskhorizon.schemas import UserCreate, UserResponse, UserUpdate
 router = APIRouter(prefix="/users", tags=["users"])
 
 
-@router.get("/", response_model=list[UserResponse])
+@router.get("", response_model=list[UserResponse])
 def list_users(db: Session = Depends(get_db)):
     """List all users."""
     users = db.query(User).all()
     return users
 
 
-@router.post("/", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 def create_user(user: UserCreate, db: Session = Depends(get_db)):
     """Create a new user."""
     # Check if email already exists
