@@ -1,0 +1,33 @@
+api:
+  replicaCount: 3
+  reload: false
+  env:
+    LOG_LEVEL: warning
+
+web:
+  replicaCount: 2
+
+postgres:
+  enabled: false
+
+db:
+  name: taskhorizon
+  user: ''
+  password: ''
+  existingSecret:
+    enabled: true
+    name: taskhorizon-prod-rds-credentials
+    passwordKey: password
+    usernameKey: username
+  externalHost: taskhorizon.xxxxxxxxxxxx.eu-west-1.rds.amazonaws.com
+
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/ssl-redirect: 'true'
+  host: taskhorizon.example.com
+  tls:
+    enabled: true
+    secretName: taskhorizon-prod-tls

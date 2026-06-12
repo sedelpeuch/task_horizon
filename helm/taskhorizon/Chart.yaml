@@ -1,0 +1,12 @@
+apiVersion: v2
+name: taskhorizon
+description: TaskHorizon — full-stack Kanban application (FastAPI + React + PostgreSQL)
+type: application
+version: 0.1.0
+appVersion: 0.1.0
+keywords:
+- kanban
+- taskhorizon
+maintainers:
+- name: sedelpeuch
+  email: s.delpeuch@catie.fr

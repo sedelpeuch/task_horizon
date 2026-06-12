@@ -1,0 +1,59 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "taskhorizon.componentName" (dict "Release" .Release "component" "web") }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "taskhorizon.labels" . | nindent 4 }}
+    app.kubernetes.io/component: web
+spec:
+  replicas: {{ .Values.web.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "taskhorizon.selectorLabels" (dict "Release" .Release "component" "web") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "taskhorizon.labels" . | nindent 8 }}
+        {{- include "taskhorizon.selectorLabels" (dict "Release" .Release "component" "web") | nindent 8 }}
+      annotations:
+        # Redémarrage rolling auto si nginx.conf change
+        checksum/nginx-config: {{ include (print $.Template.BasePath "/configmap-web-nginx.yaml") . | sha256sum }}
+    spec:
+      serviceAccountName: {{ include "taskhorizon.serviceAccountName" . }}
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: web
+          image: "{{ .Values.web.image.repository }}:{{ .Values.web.image.tag }}"
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.web.port }}
+              protocol: TCP
+          volumeMounts:
+            - name: nginx-config
+              mountPath: /etc/nginx/conf.d/default.conf
+              subPath: default.conf
+          resources:
+            {{- toYaml .Values.web.resources | nindent 12 }}
+          livenessProbe:
+            httpGet:
+              path: /
+              port: {{ .Values.web.port }}
+            initialDelaySeconds: 10
+            periodSeconds: 15
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /
+              port: {{ .Values.web.port }}
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            failureThreshold: 3
+      volumes:
+        - name: nginx-config
+          configMap:
+            name: {{ include "taskhorizon.componentName" (dict "Release" .Release "component" "web-nginx-config") }}

@@ -1,0 +1,23 @@
+api:
+  image:
+    tag: main
+  reload: true
+  env:
+    LOG_LEVEL: debug
+
+web:
+  image:
+    tag: main
+
+postgres:
+  enabled: true
+  pvc:
+    enabled: false
+
+db:
+  name: taskhorizon
+  user: postgres
+  password: testpassword
+
+ingress:
+  enabled: false

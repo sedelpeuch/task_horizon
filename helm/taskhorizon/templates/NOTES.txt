@@ -1,0 +1,16 @@
+TaskHorizon deployed: {{ .Release.Name }}
+Namespace: {{ .Release.Namespace }}
+
+  API:  http://{{ include "taskhorizon.componentName" (dict "Release" .Release "component" "api") }}:{{ .Values.api.port }}
+  Web:  http://{{ include "taskhorizon.componentName" (dict "Release" .Release "component" "web") }}:{{ .Values.web.port }}
+{{- if .Values.postgres.enabled }}
+  DB:   {{ include "taskhorizon.componentName" (dict "Release" .Release "component" "postgres") }}:{{ .Values.postgres.port }}
+{{- else }}
+  DB:   {{ .Values.db.externalHost }}:{{ .Values.postgres.port }} (external)
+{{- end }}
+
+{{- if .Values.ingress.enabled }}
+  URL:  http{{ if .Values.ingress.tls.enabled }}s{{ end }}://{{ .Values.ingress.host }}
+{{- else }}
+  Port-forward: kubectl port-forward svc/{{ include "taskhorizon.componentName" (dict "Release" .Release "component" "web") }} 8080:{{ .Values.web.port }} -n {{ .Release.Namespace }}
+{{- end }}

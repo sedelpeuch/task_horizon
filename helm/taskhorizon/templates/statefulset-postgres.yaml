@@ -1,0 +1,89 @@
+{{- if .Values.postgres.enabled }}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "taskhorizon.componentName" (dict "Release" .Release "component" "postgres") }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "taskhorizon.labels" . | nindent 4 }}
+    app.kubernetes.io/component: postgres
+spec:
+  serviceName: {{ include "taskhorizon.componentName" (dict "Release" .Release "component" "postgres") }}
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "taskhorizon.selectorLabels" (dict "Release" .Release "component" "postgres") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "taskhorizon.labels" . | nindent 8 }}
+        {{- include "taskhorizon.selectorLabels" (dict "Release" .Release "component" "postgres") | nindent 8 }}
+    spec:
+      containers:
+        - name: postgres
+          image: "{{ .Values.postgres.image.repository }}:{{ .Values.postgres.image.tag }}"
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          ports:
+            - name: postgres
+              containerPort: {{ .Values.postgres.port }}
+              protocol: TCP
+          env:
+            - name: POSTGRES_DB
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "taskhorizon.componentName" (dict "Release" .Release "component" "api-config") }}
+                  key: DATABASE_NAME
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "taskhorizon.dbSecretName" . }}
+                  key: username
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "taskhorizon.dbSecretName" . }}
+                  key: password
+            {{- if .Values.postgres.pvc.enabled }}
+            # Sous-répertoire pour éviter les conflits avec lost+found sur volumes vierges
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+            {{- end }}
+          livenessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - pg_isready -U $POSTGRES_USER -d $POSTGRES_DB
+            initialDelaySeconds: 15
+            periodSeconds: 20
+            failureThreshold: 3
+          readinessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - pg_isready -U $POSTGRES_USER -d $POSTGRES_DB
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            failureThreshold: 3
+          resources:
+            {{- toYaml .Values.postgres.resources | nindent 12 }}
+          {{- if .Values.postgres.pvc.enabled }}
+          volumeMounts:
+            - name: postgres-data
+              mountPath: /var/lib/postgresql/data
+          {{- end }}
+  {{- if .Values.postgres.pvc.enabled }}
+  volumeClaimTemplates:
+    - metadata:
+        name: postgres-data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        {{- if .Values.postgres.pvc.storageClassName }}
+        storageClassName: {{ .Values.postgres.pvc.storageClassName | quote }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.postgres.pvc.size }}
+  {{- end }}
+{{- end }}

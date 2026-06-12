@@ -1,0 +1,106 @@
+global:
+  imagePullPolicy: IfNotPresent
+  imagePullSecrets:
+  - name: ghcr-credential
+
+# ── API ───────────────────────────────────────────────────────────────────────
+api:
+  image:
+    repository: ghcr.io/sedelpeuch/task_horizon/api
+    tag: main
+  replicaCount: 1
+  port: 8000
+  reload: true
+  env:
+    DATABASE_NAME: taskhorizon
+    LOG_LEVEL: info
+    API_HOST: 0.0.0.0
+    API_PORT: '8000'
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  livenessProbe:
+    httpGet:
+      path: /health
+      port: 8000
+    initialDelaySeconds: 10
+    periodSeconds: 15
+    failureThreshold: 3
+  readinessProbe:
+    httpGet:
+      path: /health
+      port: 8000
+    initialDelaySeconds: 5
+    periodSeconds: 10
+    failureThreshold: 3
+
+# ── Web ───────────────────────────────────────────────────────────────────────
+web:
+  image:
+    repository: ghcr.io/sedelpeuch/task_horizon/web
+    tag: main
+  replicaCount: 1
+  port: 80
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
+
+# ── PostgreSQL ────────────────────────────────────────────────────────────────
+postgres:
+  enabled: true
+  image:
+    repository: postgres
+    tag: 16-alpine
+  port: 5432
+  pvc:
+    # false (test)  : postgres écrit sur layer container, données perdues au restart
+    # true (staging): PVC provisionné par le StatefulSet
+    enabled: false
+    size: 1Gi
+    storageClassName: ''
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+# ── Database credentials ──────────────────────────────────────────────────────
+db:
+  name: taskhorizon
+  user: postgres
+  # Jamais committé — injecté en CI via --set db.password=
+  password: ''
+  existingSecret:
+    # true (prod) : référence un Secret pré-existant, Helm ne crée rien
+    enabled: false
+    name: ''
+    passwordKey: password
+    usernameKey: username
+  # RDS endpoint — requis quand postgres.enabled=false
+  externalHost: ''
+
+# ── Ingress ───────────────────────────────────────────────────────────────────
+ingress:
+  enabled: false
+  className: nginx
+  annotations: {}
+  host: ''
+  tls:
+    enabled: false
+    secretName: ''
+
+# ── ServiceAccount ────────────────────────────────────────────────────────────
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ''

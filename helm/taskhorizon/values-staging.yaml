@@ -1,0 +1,25 @@
+api:
+  replicaCount: 2
+  reload: false
+  env:
+    LOG_LEVEL: info
+
+postgres:
+  enabled: true
+  pvc:
+    enabled: true
+    size: 5Gi
+    storageClassName: ''
+
+db:
+  name: taskhorizon
+  user: postgres
+  # Injecté en CI : --set db.password="${STAGING_DB_PASSWORD}"
+  password: ''
+
+ingress:
+  enabled: true
+  className: nginx
+  host: staging.taskhorizon.example.com
+  tls:
+    enabled: false

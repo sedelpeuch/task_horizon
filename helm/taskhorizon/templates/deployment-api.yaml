@@ -1,0 +1,86 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "taskhorizon.componentName" (dict "Release" .Release "component" "api") }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "taskhorizon.labels" . | nindent 4 }}
+    app.kubernetes.io/component: api
+spec:
+  replicas: {{ .Values.api.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "taskhorizon.selectorLabels" (dict "Release" .Release "component" "api") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "taskhorizon.labels" . | nindent 8 }}
+        {{- include "taskhorizon.selectorLabels" (dict "Release" .Release "component" "api") | nindent 8 }}
+    spec:
+      serviceAccountName: {{ include "taskhorizon.serviceAccountName" . }}
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: api
+          image: "{{ .Values.api.image.repository }}:{{ .Values.api.image.tag }}"
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.api.port }}
+              protocol: TCP
+          command:
+            - python
+            - -m
+            - uvicorn
+            - taskhorizon.main:app
+            - --host
+            - "0.0.0.0"
+            - --port
+            - "8000"
+            {{- if .Values.api.reload }}
+            - --reload
+            {{- end }}
+          env:
+            - name: DATABASE_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "taskhorizon.componentName" (dict "Release" .Release "component" "api-config") }}
+                  key: DATABASE_NAME
+            - name: LOG_LEVEL
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "taskhorizon.componentName" (dict "Release" .Release "component" "api-config") }}
+                  key: LOG_LEVEL
+            - name: API_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "taskhorizon.componentName" (dict "Release" .Release "component" "api-config") }}
+                  key: API_HOST
+            - name: API_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "taskhorizon.componentName" (dict "Release" .Release "component" "api-config") }}
+                  key: API_PORT
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "taskhorizon.dbSecretName" . }}
+                  key: {{ .Values.db.existingSecret.usernameKey | default "username" }}
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "taskhorizon.dbSecretName" . }}
+                  key: {{ .Values.db.existingSecret.passwordKey | default "password" }}
+            - name: DB_HOST
+              value: {{ include "taskhorizon.dbHost" . | quote }}
+            # Assemblé depuis les vars ci-dessus — le mot de passe ne touche jamais un ConfigMap
+            - name: DATABASE_URL
+              value: "postgresql://$(DB_USER):$(DB_PASSWORD)@$(DB_HOST):{{ .Values.postgres.port }}/$(DATABASE_NAME)"
+          livenessProbe:
+            {{- toYaml .Values.api.livenessProbe | nindent 12 }}
+          readinessProbe:
+            {{- toYaml .Values.api.readinessProbe | nindent 12 }}
+          resources:
+            {{- toYaml .Values.api.resources | nindent 12 }}

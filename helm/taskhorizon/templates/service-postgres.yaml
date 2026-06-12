@@ -1,0 +1,20 @@
+{{- if .Values.postgres.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "taskhorizon.componentName" (dict "Release" .Release "component" "postgres") }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "taskhorizon.labels" . | nindent 4 }}
+    app.kubernetes.io/component: postgres
+spec:
+  type: ClusterIP
+  clusterIP: None
+  ports:
+    - port: {{ .Values.postgres.port }}
+      targetPort: postgres
+      protocol: TCP
+      name: postgres
+  selector:
+    {{- include "taskhorizon.selectorLabels" (dict "Release" .Release "component" "postgres") | nindent 4 }}
+{{- end }}
