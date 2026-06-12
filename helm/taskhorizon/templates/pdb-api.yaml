@@ -1,0 +1,15 @@
+{{- if .Values.api.pdb.enabled }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "taskhorizon.componentName" (dict "Release" .Release "component" "api") }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "taskhorizon.labels" . | nindent 4 }}
+    app.kubernetes.io/component: api
+spec:
+  minAvailable: {{ .Values.api.pdb.minAvailable }}
+  selector:
+    matchLabels:
+      {{- include "taskhorizon.selectorLabels" (dict "Release" .Release "component" "api") | nindent 6 }}
+{{- end }}

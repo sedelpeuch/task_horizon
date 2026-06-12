@@ -3,6 +3,14 @@ api:
   reload: false
   env:
     LOG_LEVEL: info
+  pdb:
+    enabled: true
+    minAvailable: 1
+
+web:
+  pdb:
+    enabled: true
+    minAvailable: 1
 
 postgres:
   enabled: true

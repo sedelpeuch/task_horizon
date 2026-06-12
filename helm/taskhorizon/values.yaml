@@ -37,6 +37,14 @@ api:
     initialDelaySeconds: 5
     periodSeconds: 10
     failureThreshold: 3
+  hpa:
+    enabled: false
+    minReplicas: 1
+    maxReplicas: 5
+    targetCPUUtilizationPercentage: 70
+  pdb:
+    enabled: false
+    minAvailable: 1
 
 # ── Web ───────────────────────────────────────────────────────────────────────
 web:
@@ -52,6 +60,14 @@ web:
     limits:
       cpu: 200m
       memory: 128Mi
+  hpa:
+    enabled: false
+    minReplicas: 1
+    maxReplicas: 3
+    targetCPUUtilizationPercentage: 70
+  pdb:
+    enabled: false
+    minAvailable: 1
 
 # ── PostgreSQL ────────────────────────────────────────────────────────────────
 postgres:
