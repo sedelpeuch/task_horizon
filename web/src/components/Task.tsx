@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 
 interface User { id: string; name: string; email: string; avatar_url?: string; avatar_data?: string; created_at: string; }
 interface Label { id: string; name: string; color: string; }

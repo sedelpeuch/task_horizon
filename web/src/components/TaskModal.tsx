@@ -52,16 +52,10 @@ export default function TaskModal({ task, users, labelCatalog, onSave, onClose }
   const [labels, setLabels] = useState<string[]>(task?.labels || []);
   const [labelInput, setLabelInput] = useState('');
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'unsaved'>('saved');
-  const saveTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastSavedRef = useRef<{ title: string; description: string | null; dueDate: string; assigneeId: string; priority: string | null; labels: string[] } | null>(null);
 
   if (!task) return null;
-
-  const addLabel = () => {
-    const t = labelInput.trim().toLowerCase();
-    if (t && !labels.includes(t)) setLabels([...labels, t]);
-    setLabelInput('');
-  };
 
   const autoSave = async (titleVal: string, descVal: string, dueDateVal: string, assigneeVal: string, priorityVal: string | null, labelsVal: string[]) => {
     const updates = {
