@@ -66,3 +66,4 @@ docker-compose.override.yml
 charts/
 **/Chart.lock
 CLAUDE.md
+.coverage

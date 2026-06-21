@@ -46,7 +46,7 @@ jobs:
         run: uv run pytest --cov=src --cov-report=term-missing
 
   web-quality:
-    name: Web quality (tsc)
+    name: Web quality (tsc + tests)
     needs: pre-commit
     runs-on: ubuntu-latest
     steps:
@@ -62,6 +62,9 @@ jobs:
       - name: TypeScript type check
         working-directory: web
         run: yarn type-check
+      - name: Run tests
+        working-directory: web
+        run: yarn test
 
   web-build:
     name: Web build
