@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from taskhorizon.auth import require_admin
 from taskhorizon.db import get_db
 from taskhorizon.models import Column, Task
 from taskhorizon.schemas import ColumnResponse
@@ -26,7 +27,11 @@ def list_columns(db: Session = Depends(get_db)):
 
 
 @router.post("", response_model=ColumnResponse, status_code=status.HTTP_201_CREATED)
-def create_column(column_data: ColumnCreate, db: Session = Depends(get_db)):
+def create_column(
+    column_data: ColumnCreate,
+    db: Session = Depends(get_db),
+    _: str = Depends(require_admin),
+):
     """Create a new column."""
     # Get max position
     max_pos = db.query(Column).order_by(Column.position.desc()).first()
@@ -48,7 +53,12 @@ class ColumnUpdate(BaseModel):
 
 
 @router.put("/{column_id}", response_model=ColumnResponse)
-def update_column(column_id: str, column_data: ColumnUpdate, db: Session = Depends(get_db)):
+def update_column(
+    column_id: str,
+    column_data: ColumnUpdate,
+    db: Session = Depends(get_db),
+    _: str = Depends(require_admin),
+):
     """Update a column's name, color or position."""
     column = db.query(Column).filter(Column.id == column_id).first()
     if not column:
@@ -65,7 +75,7 @@ def update_column(column_id: str, column_data: ColumnUpdate, db: Session = Depen
 
 
 @router.delete("/{column_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_column(column_id: str, db: Session = Depends(get_db)):
+def delete_column(column_id: str, db: Session = Depends(get_db), _: str = Depends(require_admin)):
     """Delete a column and all its tasks."""
     column = db.query(Column).filter(Column.id == column_id).first()
     if not column:

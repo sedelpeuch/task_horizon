@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react';
 import Board from './components/Board';
 import LabelPanel from './components/LabelPanel';
+import LoginModal from './components/LoginModal';
 import UserPanel from './components/UserPanel';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { apiFetch } from './lib/api';
 
 interface User {
   id: string; name: string; email: string;
@@ -9,7 +12,8 @@ interface User {
 }
 interface Label { id: string; name: string; color: string; }
 
-export default function App() {
+function AppContent() {
+  const { isAuthenticated } = useAuth();
   const [users, setUsers] = useState<User[]>([]);
   const [labels, setLabels] = useState<Label[]>([]);
   const [loading, setLoading] = useState(true);
@@ -17,11 +21,14 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<'users' | 'labels'>('users');
 
   useEffect(() => {
+    if (!isAuthenticated) return;
     Promise.all([
-      fetch('/api/v1/users').then(r => r.json()),
-      fetch('/api/v1/labels').then(r => r.json()),
+      apiFetch('/api/v1/users').then(r => r.json()),
+      apiFetch('/api/v1/labels').then(r => r.json()),
     ]).then(([u, l]) => { setUsers(u); setLabels(l); }).finally(() => setLoading(false));
-  }, []);
+  }, [isAuthenticated]);
+
+  if (!isAuthenticated) return <LoginModal />;
 
   const openPanel = (tab: 'users' | 'labels') => { setActiveTab(tab); setShowPanel(true); };
 
@@ -143,5 +150,13 @@ export default function App() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
   );
 }

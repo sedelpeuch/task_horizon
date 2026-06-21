@@ -6,7 +6,6 @@ build-backend = "hatchling.build"
 name = "taskhorizon"
 version = "0.1.0"
 description = "TaskHorizon: A minimalist Kanban manager for portfolio"
-readme = "README.md"
 requires-python = ">=3.12"
 authors = [
     {name = "Sébastien Delpeuch", email = "sebastien@delpeuch.net"}
@@ -23,6 +22,8 @@ dependencies = [
     "pydantic-settings>=2.0.0",
     "email-validator>=2.0.0",
     "python-multipart>=0.0.5",
+    "pyjwt>=2.8.0",
+    "bcrypt>=4.0.0",
 ]
 
 [project.optional-dependencies]

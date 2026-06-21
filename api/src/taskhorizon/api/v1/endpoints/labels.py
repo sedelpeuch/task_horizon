@@ -3,6 +3,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
+from taskhorizon.auth import require_admin
 from taskhorizon.db import get_db
 from taskhorizon.models import Label
 from taskhorizon.schemas import LabelCreate, LabelResponse, LabelUpdate
@@ -17,7 +18,11 @@ def list_labels(db: Session = Depends(get_db)):
 
 
 @router.post("", response_model=LabelResponse, status_code=status.HTTP_201_CREATED)
-def create_label(label_data: LabelCreate, db: Session = Depends(get_db)):
+def create_label(
+    label_data: LabelCreate,
+    db: Session = Depends(get_db),
+    _: str = Depends(require_admin),
+):
     """Create a new label."""
     existing = db.query(Label).filter(Label.name == label_data.name).first()
     if existing:
@@ -30,7 +35,12 @@ def create_label(label_data: LabelCreate, db: Session = Depends(get_db)):
 
 
 @router.put("/{label_id}", response_model=LabelResponse)
-def update_label(label_id: str, label_data: LabelUpdate, db: Session = Depends(get_db)):
+def update_label(
+    label_id: str,
+    label_data: LabelUpdate,
+    db: Session = Depends(get_db),
+    _: str = Depends(require_admin),
+):
     """Update a label."""
     label = db.query(Label).filter(Label.id == label_id).first()
     if not label:
@@ -45,7 +55,7 @@ def update_label(label_id: str, label_data: LabelUpdate, db: Session = Depends(g
 
 
 @router.delete("/{label_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_label(label_id: str, db: Session = Depends(get_db)):
+def delete_label(label_id: str, db: Session = Depends(get_db), _: str = Depends(require_admin)):
     """Delete a label."""
     label = db.query(Label).filter(Label.id == label_id).first()
     if not label:

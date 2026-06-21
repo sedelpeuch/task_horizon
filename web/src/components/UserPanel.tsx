@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { apiFetch } from '../lib/api';
 
 interface User { id: string; name: string; email: string; avatar_url?: string; avatar_data?: string; created_at: string; }
 interface UserPanelProps {
@@ -25,6 +26,7 @@ export default function UserPanel({ users, onAddUser, onUpdateUser, onDeleteUser
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [newName, setNewName] = useState('');
   const [newEmail, setNewEmail] = useState('');
+  const [newPassword, setNewPassword] = useState('');
   const [newAvatar, setNewAvatar] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -34,33 +36,35 @@ export default function UserPanel({ users, onAddUser, onUpdateUser, onDeleteUser
     if (!newName.trim() || !newEmail.trim()) return;
     setSubmitting(true);
     try {
-      const res = await fetch('/api/v1/users', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: newName.trim(), email: newEmail.trim() }) });
+      const body: Record<string, string> = { name: newName.trim(), email: newEmail.trim() };
+      if (newPassword) body.password = newPassword;
+      const res = await apiFetch('/api/v1/users', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
       if (!res.ok) return;
       let user = await res.json();
       if (newAvatar) {
         const fd = new FormData(); fd.append('file', newAvatar);
-        const ar = await fetch(`/api/v1/users/${user.id}/avatar`, { method: 'POST', body: fd });
+        const ar = await apiFetch(`/api/v1/users/${user.id}/avatar`, { method: 'POST', body: fd });
         if (ar.ok) user = await ar.json();
       }
       onAddUser(user);
-      setNewName(''); setNewEmail(''); setNewAvatar(null); setAvatarPreview(''); setShowAddForm(false);
+      setNewName(''); setNewEmail(''); setNewPassword(''); setNewAvatar(null); setAvatarPreview(''); setShowAddForm(false);
     } finally { setSubmitting(false); }
   };
 
   const saveEdit = async (userId: string) => {
-    const res = await fetch(`/api/v1/users/${userId}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: editName.trim(), email: editEmail.trim() }) });
+    const res = await apiFetch(`/api/v1/users/${userId}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: editName.trim(), email: editEmail.trim() }) });
     if (res.ok) onUpdateUser(await res.json());
     setEditingId(null);
   };
 
   const handleAvatarUpload = async (userId: string, file: File) => {
     const fd = new FormData(); fd.append('file', file);
-    const res = await fetch(`/api/v1/users/${userId}/avatar`, { method: 'POST', body: fd });
+    const res = await apiFetch(`/api/v1/users/${userId}/avatar`, { method: 'POST', body: fd });
     if (res.ok) onUpdateUser(await res.json());
   };
 
   const handleDelete = async (userId: string) => {
-    const res = await fetch(`/api/v1/users/${userId}`, { method: 'DELETE' });
+    const res = await apiFetch(`/api/v1/users/${userId}`, { method: 'DELETE' });
     if (res.ok) onDeleteUser(userId);
     setDeletingId(null);
   };
@@ -125,6 +129,7 @@ export default function UserPanel({ users, onAddUser, onUpdateUser, onDeleteUser
             <p style={{ fontSize: '12px', fontWeight: 600, color: 'var(--gh-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Nouveau membre</p>
             <input type="text" placeholder="Nom" value={newName} onChange={e => setNewName(e.target.value)} className="gh-input" autoFocus disabled={submitting} />
             <input type="email" placeholder="Email" value={newEmail} onChange={e => setNewEmail(e.target.value)} className="gh-input" disabled={submitting} />
+            <input type="password" placeholder="Mot de passe (optionnel)" value={newPassword} onChange={e => setNewPassword(e.target.value)} className="gh-input" disabled={submitting} />
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               {avatarPreview && <img src={avatarPreview} alt="" style={{ width: 28, height: 28, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />}
               <label style={{ fontSize: '12px', color: 'var(--gh-text-link)', cursor: 'pointer', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -135,7 +140,7 @@ export default function UserPanel({ users, onAddUser, onUpdateUser, onDeleteUser
             </div>
             <div style={{ display: 'flex', gap: '6px' }}>
               <button type="submit" disabled={submitting} className="gh-btn gh-btn-primary gh-btn-sm" style={{ flex: 1 }}>{submitting ? '…' : 'Ajouter'}</button>
-              <button type="button" onClick={() => { setShowAddForm(false); setNewName(''); setNewEmail(''); setNewAvatar(null); setAvatarPreview(''); }}
+              <button type="button" onClick={() => { setShowAddForm(false); setNewName(''); setNewEmail(''); setNewPassword(''); setNewAvatar(null); setAvatarPreview(''); }}
                 className="gh-btn gh-btn-sm" style={{ flex: 1 }}>Annuler</button>
             </div>
           </form>

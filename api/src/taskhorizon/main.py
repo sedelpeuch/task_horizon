@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from taskhorizon.api.v1.endpoints import columns, labels, tasks, users
+from taskhorizon.api.v1.endpoints import auth, columns, labels, tasks, users
 from taskhorizon.db import init_db
 
 
@@ -55,6 +55,7 @@ async def root():
 
 
 # Include routers
+app.include_router(auth.router, prefix="/api/v1")
 app.include_router(users.router, prefix="/api/v1")
 app.include_router(columns.router, prefix="/api/v1")
 app.include_router(tasks.router, prefix="/api/v1")

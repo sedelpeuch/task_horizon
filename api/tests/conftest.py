@@ -8,9 +8,10 @@ from sqlalchemy.pool import StaticPool
 
 import taskhorizon.db as db_module
 import taskhorizon.main as main_module
+from taskhorizon.auth import get_current_user, require_admin
 from taskhorizon.db import get_db
 from taskhorizon.main import app
-from taskhorizon.models import Base
+from taskhorizon.models import Base, User
 
 # SQLite in-memory engine for tests
 TEST_DATABASE_URL = "sqlite://"
@@ -33,7 +34,6 @@ def _test_init_db():
 
 
 # Replace init_db with SQLite-safe version before lifespan runs
-# Patch both the db module and main module's bound reference
 db_module.init_db = _test_init_db
 main_module.init_db = _test_init_db
 
@@ -47,8 +47,12 @@ def override_get_db():
         db.close()
 
 
-# Set override at import time so lifespan startup uses the test engine
+# Admin user injected by default for all tests
+TEST_ADMIN = User(id="test-admin-id", name="Admin", email="admin@test.com", is_admin=True)
+
 app.dependency_overrides[get_db] = override_get_db
+app.dependency_overrides[get_current_user] = lambda: TEST_ADMIN
+app.dependency_overrides[require_admin] = lambda: TEST_ADMIN
 
 
 @pytest.fixture(autouse=True)

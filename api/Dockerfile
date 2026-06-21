@@ -1,50 +1,50 @@
-# Build stage
-FROM python:3.12-slim as builder
+# Build stage — install deps without source for better layer caching
+FROM python:3.12-slim AS builder
 
-WORKDIR /build
+WORKDIR /app
 
-# Install build dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential \
+    build-essential libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy project files
-COPY pyproject.toml uv.lock* ./
+RUN pip install --no-cache-dir uv
 
-# Install UV and build wheels
-RUN pip install --no-cache-dir uv && \
-    uv pip compile pyproject.toml --output-file requirements.txt || \
-    (uv pip install --system-site-packages -e . && \
-     pip freeze > requirements.txt)
+# Install dependencies first (cached unless pyproject.toml/uv.lock changes)
+COPY pyproject.toml uv.lock* ./
+RUN uv sync --no-dev --no-install-project
 
 # Runtime stage
 FROM python:3.12-slim
 
 WORKDIR /app
 
-# Install runtime dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    libpq5 \
-    curl \
+    libpq5 curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy installed packages from builder
-COPY --from=builder /build/requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir uv
 
-# Copy application code
-COPY src/taskhorizon ./taskhorizon
+# Copy venv from builder
+COPY --from=builder /app/.venv ./.venv
 
-# Create non-root user
+# Copy project files
+COPY pyproject.toml uv.lock* ./
+COPY src ./src
+COPY alembic ./alembic
+COPY alembic.ini ./
+COPY entrypoint.sh ./
+
+RUN chmod +x entrypoint.sh
+
+# Install project in editable mode into the existing venv
+RUN uv sync --no-dev
+
 RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
 USER appuser
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:8000/health || exit 1
-
-# Expose port
 EXPOSE 8000
 
-# Run application
-CMD ["python", "-m", "uvicorn", "taskhorizon.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
+    CMD curl -f http://localhost:8000/health || exit 1
+
+ENTRYPOINT ["./entrypoint.sh"]
