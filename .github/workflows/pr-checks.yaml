@@ -5,6 +5,9 @@ on:
     branches: [master]
   workflow_dispatch:
 
+permissions:
+  contents: read
+  pull-requests: write
 
 jobs:
   pre-commit:
@@ -28,7 +31,33 @@ jobs:
           path: ~/.cache/pre-commit
           key: pre-commit-${{ hashFiles('.pre-commit-config.yaml') }}
       - name: Run pre-commit
-        run: pre-commit run --all-files
+        id: precommit
+        continue-on-error: true
+        run: |
+          pre-commit run --all-files 2>&1 | tee /tmp/precommit.txt
+          exit ${PIPESTATUS[0]}
+      - name: Build comment
+        if: always() && github.event_name == 'pull_request'
+        run: |
+          STATUS=$([[ "${{ steps.precommit.outcome }}" == "success" ]] && echo "✅ Passed" || echo "❌ Failed")
+          {
+            echo "## ${STATUS} — Pre-commit"
+            echo ""
+            echo "<details><summary>Hook output</summary>"
+            echo ""
+            echo '```'
+            cat /tmp/precommit.txt
+            echo '```'
+            echo "</details>"
+          } > /tmp/precommit_comment.md
+      - uses: marocchino/sticky-pull-request-comment@v2
+        if: always() && github.event_name == 'pull_request'
+        with:
+          header: pre-commit
+          path: /tmp/precommit_comment.md
+      - name: Propagate failure
+        if: steps.precommit.outcome == 'failure'
+        run: exit 1
 
   api-tests:
     name: API tests
@@ -42,8 +71,37 @@ jobs:
         working-directory: api
         run: uv sync --extra dev
       - name: Run tests
+        id: pytest
+        continue-on-error: true
         working-directory: api
-        run: uv run pytest --cov=src --cov-report=term-missing
+        run: |
+          uv run pytest --cov=src --cov-report=term-missing 2>&1 | tee /tmp/pytest.txt
+          exit ${PIPESTATUS[0]}
+      - name: Build comment
+        if: always() && github.event_name == 'pull_request'
+        run: |
+          STATUS=$([[ "${{ steps.pytest.outcome }}" == "success" ]] && echo "✅ Passed" || echo "❌ Failed")
+          SUMMARY=$(grep -E "passed|failed|error" /tmp/pytest.txt | tail -1 || echo "No summary")
+          {
+            echo "## ${STATUS} — API Tests"
+            echo ""
+            echo "**${SUMMARY}**"
+            echo ""
+            echo "<details><summary>Coverage report</summary>"
+            echo ""
+            echo '```'
+            grep -A 100 "coverage:" /tmp/pytest.txt || tail -40 /tmp/pytest.txt
+            echo '```'
+            echo "</details>"
+          } > /tmp/pytest_comment.md
+      - uses: marocchino/sticky-pull-request-comment@v2
+        if: always() && github.event_name == 'pull_request'
+        with:
+          header: api-tests
+          path: /tmp/pytest_comment.md
+      - name: Propagate failure
+        if: steps.pytest.outcome == 'failure'
+        run: exit 1
 
   api-migrations:
     name: API migrations check
@@ -71,15 +129,60 @@ jobs:
         working-directory: api
         run: uv sync
       - name: Apply migrations
+        id: migrate
+        continue-on-error: true
         working-directory: api
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/taskhorizon_ci
-        run: uv run alembic upgrade head
+        run: |
+          uv run alembic upgrade head 2>&1 | tee /tmp/migrate.txt
+          exit ${PIPESTATUS[0]}
       - name: Check no pending migrations
+        id: check
+        continue-on-error: true
         working-directory: api
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/taskhorizon_ci
-        run: uv run alembic check
+        run: |
+          uv run alembic check 2>&1 | tee /tmp/alembic_check.txt
+          exit ${PIPESTATUS[0]}
+      - name: Build comment
+        if: always() && github.event_name == 'pull_request'
+        run: |
+          MIGRATE_STATUS=$([[ "${{ steps.migrate.outcome }}" == "success" ]] && echo "✅" || echo "❌")
+          CHECK_STATUS=$([[ "${{ steps.check.outcome }}" == "success" ]] && echo "✅" || echo "❌")
+          OVERALL=$([[ "${{ steps.migrate.outcome }}" == "success" && "${{ steps.check.outcome }}" == "success" ]] && echo "✅ Passed" || echo "❌ Failed")
+          {
+            echo "## ${OVERALL} — API Migrations"
+            echo ""
+            echo "| Step | Status |"
+            echo "|------|--------|"
+            echo "| \`alembic upgrade head\` | ${MIGRATE_STATUS} |"
+            echo "| \`alembic check\` (no pending) | ${CHECK_STATUS} |"
+            echo ""
+            echo "<details><summary>Migration log</summary>"
+            echo ""
+            echo '```'
+            cat /tmp/migrate.txt
+            echo '```'
+            echo ""
+            if [[ "${{ steps.check.outcome }}" != "success" ]]; then
+              echo "**⚠️ Pending migrations detected — run \`alembic revision --autogenerate\`**"
+              echo ""
+              echo '```'
+              cat /tmp/alembic_check.txt
+              echo '```'
+            fi
+            echo "</details>"
+          } > /tmp/migrations_comment.md
+      - uses: marocchino/sticky-pull-request-comment@v2
+        if: always() && github.event_name == 'pull_request'
+        with:
+          header: api-migrations
+          path: /tmp/migrations_comment.md
+      - name: Propagate failure
+        if: steps.migrate.outcome == 'failure' || steps.check.outcome == 'failure'
+        run: exit 1
 
   web-quality:
     name: Web quality (tsc + tests)
@@ -96,11 +199,60 @@ jobs:
         working-directory: web
         run: yarn install --immutable
       - name: TypeScript type check
+        id: tsc
+        continue-on-error: true
         working-directory: web
-        run: yarn type-check
+        run: |
+          yarn type-check 2>&1 | tee /tmp/tsc.txt
+          exit ${PIPESTATUS[0]}
       - name: Run tests
+        id: vitest
+        continue-on-error: true
         working-directory: web
-        run: yarn test
+        run: |
+          yarn test 2>&1 | tee /tmp/vitest.txt
+          exit ${PIPESTATUS[0]}
+      - name: Build comment
+        if: always() && github.event_name == 'pull_request'
+        run: |
+          TSC_STATUS=$([[ "${{ steps.tsc.outcome }}" == "success" ]] && echo "✅" || echo "❌")
+          TEST_STATUS=$([[ "${{ steps.vitest.outcome }}" == "success" ]] && echo "✅" || echo "❌")
+          OVERALL=$([[ "${{ steps.tsc.outcome }}" == "success" && "${{ steps.vitest.outcome }}" == "success" ]] && echo "✅ Passed" || echo "❌ Failed")
+          TEST_SUMMARY=$(grep -E "Tests.*passed|Test Files" /tmp/vitest.txt | tail -2 | tr '\n' ' ' || echo "")
+          {
+            echo "## ${OVERALL} — Web Quality"
+            echo ""
+            echo "| Check | Status |"
+            echo "|-------|--------|"
+            echo "| TypeScript (\`tsc --noEmit\`) | ${TSC_STATUS} |"
+            echo "| Vitest | ${TEST_STATUS} ${TEST_SUMMARY} |"
+            echo ""
+            if [[ "${{ steps.tsc.outcome }}" != "success" ]]; then
+              echo "<details><summary>TypeScript errors</summary>"
+              echo ""
+              echo '```'
+              cat /tmp/tsc.txt
+              echo '```'
+              echo "</details>"
+              echo ""
+            fi
+            if [[ "${{ steps.vitest.outcome }}" != "success" ]]; then
+              echo "<details><summary>Test failures</summary>"
+              echo ""
+              echo '```'
+              cat /tmp/vitest.txt
+              echo '```'
+              echo "</details>"
+            fi
+          } > /tmp/web_quality_comment.md
+      - uses: marocchino/sticky-pull-request-comment@v2
+        if: always() && github.event_name == 'pull_request'
+        with:
+          header: web-quality
+          path: /tmp/web_quality_comment.md
+      - name: Propagate failure
+        if: steps.tsc.outcome == 'failure' || steps.vitest.outcome == 'failure'
+        run: exit 1
 
   web-build:
     name: Web build
@@ -117,5 +269,42 @@ jobs:
         working-directory: web
         run: yarn install --immutable
       - name: Build
+        id: build
+        continue-on-error: true
         working-directory: web
-        run: yarn build
+        run: |
+          yarn build 2>&1 | tee /tmp/build.txt
+          exit ${PIPESTATUS[0]}
+      - name: Build comment
+        if: always() && github.event_name == 'pull_request'
+        run: |
+          STATUS=$([[ "${{ steps.build.outcome }}" == "success" ]] && echo "✅ Passed" || echo "❌ Failed")
+          {
+            echo "## ${STATUS} — Web Build"
+            echo ""
+            if [[ "${{ steps.build.outcome }}" == "success" ]]; then
+              echo "Bundle compiled successfully."
+              echo ""
+              echo "<details><summary>Build output</summary>"
+              echo ""
+              echo '```'
+              grep -E "dist|kB|gzip|built" /tmp/build.txt || tail -20 /tmp/build.txt
+              echo '```'
+              echo "</details>"
+            else
+              echo "<details><summary>Build errors</summary>"
+              echo ""
+              echo '```'
+              cat /tmp/build.txt
+              echo '```'
+              echo "</details>"
+            fi
+          } > /tmp/build_comment.md
+      - uses: marocchino/sticky-pull-request-comment@v2
+        if: always() && github.event_name == 'pull_request'
+        with:
+          header: web-build
+          path: /tmp/build_comment.md
+      - name: Propagate failure
+        if: steps.build.outcome == 'failure'
+        run: exit 1
