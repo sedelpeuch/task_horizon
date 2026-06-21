@@ -18,6 +18,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
+      - name: Enable corepack (yarn 4)
+        run: corepack enable
       - name: Install pre-commit
         run: pip install pre-commit
       - name: Cache pre-commit envs
@@ -51,11 +53,11 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
-          cache: yarn
-          cache-dependency-path: web/yarn.lock
+      - name: Enable corepack (yarn 4)
+        run: corepack enable
       - name: Install deps
         working-directory: web
-        run: yarn install --frozen-lockfile
+        run: yarn install --immutable
       - name: TypeScript type check
         working-directory: web
         run: yarn type-check
@@ -69,11 +71,11 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
-          cache: yarn
-          cache-dependency-path: web/yarn.lock
+      - name: Enable corepack (yarn 4)
+        run: corepack enable
       - name: Install deps
         working-directory: web
-        run: yarn install --frozen-lockfile
+        run: yarn install --immutable
       - name: Build
         working-directory: web
         run: yarn build
