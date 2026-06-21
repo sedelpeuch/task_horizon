@@ -45,6 +45,42 @@ jobs:
         working-directory: api
         run: uv run pytest --cov=src --cov-report=term-missing
 
+  api-migrations:
+    name: API migrations check
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: taskhorizon_ci
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - name: Install deps
+        working-directory: api
+        run: uv sync
+      - name: Apply migrations
+        working-directory: api
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/taskhorizon_ci
+        run: uv run alembic upgrade head
+      - name: Check no pending migrations
+        working-directory: api
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/taskhorizon_ci
+        run: uv run alembic check
+
   web-quality:
     name: Web quality (tsc + tests)
     needs: pre-commit

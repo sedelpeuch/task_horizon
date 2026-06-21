@@ -6,9 +6,11 @@ repos:
     args: [--fix]
     types: [python]
     stages: [pre-commit]
+    exclude: "api/alembic"
   - id: ruff-format
     types: [python]
     stages: [pre-commit]
+    exclude: "api/alembic"
 
 - repo: https://github.com/pre-commit/mirrors-eslint
   rev: v10.4.1

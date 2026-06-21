@@ -73,6 +73,7 @@ class Label(Base):
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
     name: Mapped[str] = mapped_column(String(50), nullable=False, unique=True)
     color: Mapped[str] = mapped_column(String(20), nullable=False, default="#8b5cf6")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     def __repr__(self) -> str:
         return f"<Label(name={self.name}, color={self.color})>"
