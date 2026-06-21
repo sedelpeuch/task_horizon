@@ -23,12 +23,18 @@ services:
     environment:
       DATABASE_URL: postgresql://${DATABASE_USER:-postgres}:${DATABASE_PASSWORD:-postgres}@localhost:5432/${DATABASE_NAME:-taskhorizon}
       LOG_LEVEL: ${LOG_LEVEL:-info}
+      JWT_SECRET: ${JWT_SECRET:-dev-secret-change-in-prod}
+      JWT_EXPIRE_HOURS: ${JWT_EXPIRE_HOURS:-24}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@taskhorizon.local}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin}
+      UVICORN_RELOAD: ${UVICORN_RELOAD:-true}
     depends_on:
       postgres:
         condition: service_healthy
     network_mode: host
     volumes:
     - ./api/src:/app/src:cached
+    - ./api/alembic:/app/alembic:cached
 
   web:
     build:

@@ -90,6 +90,21 @@ postgres:
       cpu: 500m
       memory: 512Mi
 
+# ── Auth ─────────────────────────────────────────────────────────────────────
+auth:
+  # Jamais committé — injecté en CI via --set auth.jwtSecret=
+  jwtSecret: ''
+  jwtExpireHours: '24'
+  adminEmail: 'admin@taskhorizon.local'
+  # Jamais committé — injecté en CI via --set auth.adminPassword=
+  adminPassword: ''
+  existingSecret:
+    # true (prod) : référence un Secret pré-existant
+    enabled: false
+    name: ''
+    jwtSecretKey: jwt-secret
+    adminPasswordKey: admin-password
+
 # ── Database credentials ──────────────────────────────────────────────────────
 db:
   name: taskhorizon

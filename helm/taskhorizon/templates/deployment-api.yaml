@@ -80,6 +80,26 @@ spec:
             # Assemblé depuis les vars ci-dessus — le mot de passe ne touche jamais un ConfigMap
             - name: DATABASE_URL
               value: "postgresql://$(DB_USER):$(DB_PASSWORD)@$(DB_HOST):{{ .Values.postgres.port }}/$(DATABASE_NAME)"
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ if .Values.auth.existingSecret.enabled }}{{ .Values.auth.existingSecret.name }}{{ else }}{{ include "taskhorizon.componentName" (dict "Release" .Release "component" "auth-credentials") }}{{ end }}
+                  key: {{ .Values.auth.existingSecret.jwtSecretKey | default "jwt-secret" }}
+            - name: ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ if .Values.auth.existingSecret.enabled }}{{ .Values.auth.existingSecret.name }}{{ else }}{{ include "taskhorizon.componentName" (dict "Release" .Release "component" "auth-credentials") }}{{ end }}
+                  key: {{ .Values.auth.existingSecret.adminPasswordKey | default "admin-password" }}
+            - name: JWT_EXPIRE_HOURS
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "taskhorizon.componentName" (dict "Release" .Release "component" "api-config") }}
+                  key: JWT_EXPIRE_HOURS
+            - name: ADMIN_EMAIL
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "taskhorizon.componentName" (dict "Release" .Release "component" "api-config") }}
+                  key: ADMIN_EMAIL
           livenessProbe:
             {{- toYaml .Values.api.livenessProbe | nindent 12 }}
           readinessProbe:

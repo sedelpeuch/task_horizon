@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import Column from './Column';
 import TaskModal from './TaskModal';
+import { apiFetch } from '../lib/api';
 
 interface User {
   id: string;
@@ -69,7 +70,7 @@ export default function Board({ users, labels }: BoardProps) {
   const [showSortMenu, setShowSortMenu] = useState(false);
 
   const fetchTasks = async () => {
-    const res = await fetch(`${API_URL}/tasks`);
+    const res = await apiFetch(`${API_URL}/tasks`);
     if (res.ok) setTasks(await res.json());
   };
 
@@ -78,8 +79,8 @@ export default function Board({ users, labels }: BoardProps) {
       try {
         setLoading(true);
         const [columnsRes, tasksRes] = await Promise.all([
-          fetch(`${API_URL}/columns`),
-          fetch(`${API_URL}/tasks`),
+          apiFetch(`${API_URL}/columns`),
+          apiFetch(`${API_URL}/tasks`),
         ]);
         if (!columnsRes.ok || !tasksRes.ok) throw new Error('Failed to fetch data');
         setColumns(await columnsRes.json());
@@ -94,7 +95,7 @@ export default function Board({ users, labels }: BoardProps) {
   }, []);
 
   const addTask = async (columnId: string, title: string, description = '', assigneeId: string | null = null) => {
-    const res = await fetch(`${API_URL}/tasks`, {
+    const res = await apiFetch(`${API_URL}/tasks`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ title, description, column_id: columnId, assignee_id: assigneeId }),
@@ -105,12 +106,12 @@ export default function Board({ users, labels }: BoardProps) {
   };
 
   const deleteTask = async (taskId: string) => {
-    const res = await fetch(`${API_URL}/tasks/${taskId}`, { method: 'DELETE' });
+    const res = await apiFetch(`${API_URL}/tasks/${taskId}`, { method: 'DELETE' });
     if (res.ok) setTasks((prev) => prev.filter((t) => t.id !== taskId));
   };
 
   const updateTask = async (taskId: string, updates: Partial<Task>) => {
-    const res = await fetch(`${API_URL}/tasks/${taskId}`, {
+    const res = await apiFetch(`${API_URL}/tasks/${taskId}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(updates),
@@ -121,7 +122,7 @@ export default function Board({ users, labels }: BoardProps) {
   };
 
   const moveTask = async (taskId: string, targetColumnId: string, targetPosition: number) => {
-    const res = await fetch(`${API_URL}/tasks/${taskId}/move`, {
+    const res = await apiFetch(`${API_URL}/tasks/${taskId}/move`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ column_id: targetColumnId, position: targetPosition }),
@@ -163,7 +164,7 @@ export default function Board({ users, labels }: BoardProps) {
 
   const addColumn = async () => {
     if (!newColumnName.trim()) return;
-    const res = await fetch(`${API_URL}/columns`, {
+    const res = await apiFetch(`${API_URL}/columns`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: newColumnName.trim(), color: newColumnColor }),
@@ -177,7 +178,7 @@ export default function Board({ users, labels }: BoardProps) {
   };
 
   const deleteColumn = async (columnId: string) => {
-    const res = await fetch(`${API_URL}/columns/${columnId}`, { method: 'DELETE' });
+    const res = await apiFetch(`${API_URL}/columns/${columnId}`, { method: 'DELETE' });
     if (!res.ok) return;
     setColumns((prev) => prev.filter((c) => c.id !== columnId));
     setTasks((prev) => prev.filter((t) => t.column_id !== columnId));
@@ -185,7 +186,7 @@ export default function Board({ users, labels }: BoardProps) {
 
   const updateColumnColor = async (columnId: string, color: string) => {
     setColumns((prev) => prev.map((c) => (c.id === columnId ? { ...c, color } : c)));
-    await fetch(`${API_URL}/columns/${columnId}`, {
+    await apiFetch(`${API_URL}/columns/${columnId}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ color }),
@@ -195,7 +196,7 @@ export default function Board({ users, labels }: BoardProps) {
   const renameColumn = async (columnId: string, name: string) => {
     const prevName = columns.find((c) => c.id === columnId)?.name;
     setColumns((prev) => prev.map((c) => (c.id === columnId ? { ...c, name } : c)));
-    const res = await fetch(`${API_URL}/columns/${columnId}`, {
+    const res = await apiFetch(`${API_URL}/columns/${columnId}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name }),
@@ -224,12 +225,12 @@ export default function Board({ users, labels }: BoardProps) {
         .sort((a, b) => a.position - b.position)
     );
 
-    await fetch(`${API_URL}/columns/${col.id}`, {
+    await apiFetch(`${API_URL}/columns/${col.id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ position: swapCol.position }),
     });
-    await fetch(`${API_URL}/columns/${swapCol.id}`, {
+    await apiFetch(`${API_URL}/columns/${swapCol.id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ position: col.position }),

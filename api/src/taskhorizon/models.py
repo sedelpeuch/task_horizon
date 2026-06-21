@@ -3,7 +3,7 @@
 from datetime import datetime
 from uuid import uuid4
 
-from sqlalchemy import JSON, DateTime, ForeignKey, LargeBinary, String, Text
+from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, LargeBinary, String, Text
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -33,6 +33,8 @@ class User(Base):
     avatar_mime_type: Mapped[str | None] = mapped_column(
         String(50), nullable=True, default="image/jpeg"
     )
+    password_hash: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    is_admin: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     tasks: Mapped[list["Task"]] = relationship(

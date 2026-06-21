@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { apiFetch } from '../lib/api';
 
 interface Label { id: string; name: string; color: string; }
 interface LabelPanelProps {
@@ -42,7 +43,7 @@ export default function LabelPanel({ labels, onAddLabel, onUpdateLabel, onDelete
     if (!newName.trim()) return;
     setSubmitting(true);
     try {
-      const res = await fetch('/api/v1/labels', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: newName.trim().toLowerCase(), color: newColor }) });
+      const res = await apiFetch('/api/v1/labels', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: newName.trim().toLowerCase(), color: newColor }) });
       if (!res.ok) return;
       onAddLabel(await res.json());
       setNewName(''); setNewColor('#0075ca'); setShowAddForm(false);
@@ -50,13 +51,13 @@ export default function LabelPanel({ labels, onAddLabel, onUpdateLabel, onDelete
   };
 
   const saveEdit = async (id: string) => {
-    const res = await fetch(`/api/v1/labels/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: editName.trim().toLowerCase(), color: editColor }) });
+    const res = await apiFetch(`/api/v1/labels/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: editName.trim().toLowerCase(), color: editColor }) });
     if (res.ok) onUpdateLabel(await res.json());
     setEditingId(null);
   };
 
   const handleDelete = async (id: string) => {
-    const res = await fetch(`/api/v1/labels/${id}`, { method: 'DELETE' });
+    const res = await apiFetch(`/api/v1/labels/${id}`, { method: 'DELETE' });
     if (res.ok) onDeleteLabel(id);
     setDeletingId(null);
   };

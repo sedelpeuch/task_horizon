@@ -5,7 +5,7 @@ from os import getenv
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from taskhorizon.models import Column
+from taskhorizon.models import Column, User
 
 # Database URL from environment or default
 DATABASE_URL = getenv(
@@ -27,6 +27,8 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 def init_db():
     """Seed default data. Schema migrations are handled by Alembic."""
+    from taskhorizon.auth import hash_password
+
     db = SessionLocal()
     try:
         if db.query(Column).count() == 0:
@@ -37,6 +39,19 @@ def init_db():
             ]
             db.add_all(columns)
             db.commit()
+
+        admin_email = getenv("ADMIN_EMAIL")
+        admin_password = getenv("ADMIN_PASSWORD")
+        if admin_email and admin_password:
+            if not db.query(User).filter(User.is_admin == True).first():  # noqa: E712
+                admin = User(
+                    name="Admin",
+                    email=admin_email,
+                    password_hash=hash_password(admin_password),
+                    is_admin=True,
+                )
+                db.add(admin)
+                db.commit()
     finally:
         db.close()
 

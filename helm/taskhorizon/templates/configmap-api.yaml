@@ -10,3 +10,5 @@ data:
   API_HOST: {{ .Values.api.env.API_HOST | quote }}
   API_PORT: {{ .Values.api.env.API_PORT | quote }}
   LOG_LEVEL: {{ .Values.api.env.LOG_LEVEL | quote }}
+  JWT_EXPIRE_HOURS: {{ .Values.auth.jwtExpireHours | quote }}
+  ADMIN_EMAIL: {{ .Values.auth.adminEmail | quote }}

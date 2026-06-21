@@ -3,8 +3,9 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
+from taskhorizon.auth import get_current_user
 from taskhorizon.db import get_db
-from taskhorizon.models import Task
+from taskhorizon.models import Task, User
 from taskhorizon.schemas import TaskCreate, TaskMoveSchema, TaskResponse, TaskUpdate
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
@@ -18,9 +19,12 @@ def list_tasks(db: Session = Depends(get_db)):
 
 
 @router.post("", response_model=TaskResponse, status_code=status.HTTP_201_CREATED)
-def create_task(task: TaskCreate, db: Session = Depends(get_db)):
+def create_task(
+    task: TaskCreate,
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
+):
     """Create a new task."""
-    # Get max position in the column
     max_position = (
         db.query(Task)
         .filter(Task.column_id == task.column_id)
@@ -47,22 +51,23 @@ def get_task(task_id: str, db: Session = Depends(get_db)):
     """Get a task by ID."""
     task = db.query(Task).filter(Task.id == task_id).first()
     if not task:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Task not found",
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found")
     return task
 
 
 @router.put("/{task_id}", response_model=TaskResponse)
-def update_task(task_id: str, task_update: TaskUpdate, db: Session = Depends(get_db)):
-    """Update a task."""
+def update_task(
+    task_id: str,
+    task_update: TaskUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Update a task. Admin can update any task; non-admin only their own."""
     task = db.query(Task).filter(Task.id == task_id).first()
     if not task:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Task not found",
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found")
+    if not current_user.is_admin and task.assignee_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not allowed")
 
     fields = task_update.model_fields_set
     if "title" in fields and task_update.title is not None:
@@ -84,23 +89,24 @@ def update_task(task_id: str, task_update: TaskUpdate, db: Session = Depends(get
 
 
 @router.post("/{task_id}/move", response_model=TaskResponse)
-def move_task(task_id: str, move: TaskMoveSchema, db: Session = Depends(get_db)):
-    """Move a task to a different column and position."""
+def move_task(
+    task_id: str,
+    move: TaskMoveSchema,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Move a task. Admin can move any task; non-admin only their own."""
     task = db.query(Task).filter(Task.id == task_id).first()
     if not task:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Task not found",
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found")
+    if not current_user.is_admin and task.assignee_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not allowed")
 
     old_column_id = task.column_id
     old_position = task.position
 
-    # If moving within same column, just update position
     if old_column_id == move.column_id:
-        # Shift tasks if needed
         if move.position > old_position:
-            # Moving down, shift tasks up
             tasks_to_shift = db.query(Task).filter(
                 Task.column_id == move.column_id,
                 Task.position > old_position,
@@ -109,7 +115,6 @@ def move_task(task_id: str, move: TaskMoveSchema, db: Session = Depends(get_db))
             for t in tasks_to_shift:
                 t.position -= 1
         elif move.position < old_position:
-            # Moving up, shift tasks down
             tasks_to_shift = db.query(Task).filter(
                 Task.column_id == move.column_id,
                 Task.position >= move.position,
@@ -118,8 +123,6 @@ def move_task(task_id: str, move: TaskMoveSchema, db: Session = Depends(get_db))
             for t in tasks_to_shift:
                 t.position += 1
     else:
-        # Moving to different column
-        # Shift tasks in old column
         tasks_in_old = db.query(Task).filter(
             Task.column_id == old_column_id,
             Task.position > old_position,
@@ -127,7 +130,6 @@ def move_task(task_id: str, move: TaskMoveSchema, db: Session = Depends(get_db))
         for t in tasks_in_old:
             t.position -= 1
 
-        # Shift tasks in new column
         tasks_in_new = db.query(Task).filter(
             Task.column_id == move.column_id,
             Task.position >= move.position,
@@ -144,19 +146,21 @@ def move_task(task_id: str, move: TaskMoveSchema, db: Session = Depends(get_db))
 
 
 @router.delete("/{task_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_task(task_id: str, db: Session = Depends(get_db)):
-    """Delete a task."""
+def delete_task(
+    task_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Delete a task. Admin can delete any task; non-admin only their own."""
     task = db.query(Task).filter(Task.id == task_id).first()
     if not task:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Task not found",
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found")
+    if not current_user.is_admin and task.assignee_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not allowed")
 
     column_id = task.column_id
     position = task.position
 
-    # Shift remaining tasks in the column
     tasks_to_shift = db.query(Task).filter(
         Task.column_id == column_id,
         Task.position > position,

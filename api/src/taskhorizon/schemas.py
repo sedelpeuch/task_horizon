@@ -12,6 +12,7 @@ class UserCreate(BaseModel):
     name: str
     email: EmailStr
     avatar_url: str | None = None
+    password: str | None = None
 
 
 class UserUpdate(BaseModel):
@@ -28,6 +29,7 @@ class UserResponse(BaseModel):
     id: str
     name: str
     email: str
+    is_admin: bool = False
     avatar_url: str | None = None
     avatar_mime_type: str | None = None
     avatar_data: bytes | str | None = None
@@ -130,3 +132,17 @@ class TaskMoveSchema(BaseModel):
 
     column_id: str
     position: int
+
+
+class LoginSchema(BaseModel):
+    """Login credentials schema."""
+
+    email: str
+    password: str
+
+
+class TokenResponse(BaseModel):
+    """JWT token response schema."""
+
+    token: str
+    user: UserResponse
