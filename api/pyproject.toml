@@ -7,9 +7,7 @@ name = "taskhorizon"
 version = "0.1.0"
 description = "TaskHorizon: A minimalist Kanban manager for portfolio"
 requires-python = ">=3.12"
-authors = [
-    {name = "Sébastien Delpeuch", email = "sebastien@delpeuch.net"}
-]
+authors = [{ name = "Sébastien Delpeuch", email = "sebastien@delpeuch.net" }]
 
 dependencies = [
     "fastapi>=0.104.0",
@@ -24,6 +22,7 @@ dependencies = [
     "python-multipart>=0.0.5",
     "pyjwt>=2.8.0",
     "bcrypt>=4.0.0",
+    "graphviz>=0.21",
 ]
 
 [project.optional-dependencies]
@@ -33,6 +32,10 @@ dev = [
     "pytest-cov>=4.1.0",
     "ruff>=0.1.0",
     "httpx2>=2.4.0",
+    "localstack>=2026.5.3",
+    "awscli-local>=0.22.2",
+    "terraform-local>=0.26.0",
+    "botocore[crt]>=1.43.34",
 ]
 
 [project.scripts]
