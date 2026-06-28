@@ -10,6 +10,12 @@ variable "aws_region" {
   default     = "eu-west-3"
 }
 
+variable "enable_rds" {
+  description = "Enable RDS resources (requires LocalStack Pro or real AWS)"
+  type        = bool
+  default     = false
+}
+
 variable "db_username" {
   description = "The username for the RDS instance"
   type        = string
