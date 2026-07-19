@@ -63,6 +63,8 @@ jobs:
         run: |
           helm upgrade --install ${{ env.RELEASE }} ./helm/taskhorizon \
             -f helm/taskhorizon/values-test.yaml \
+            --set auth.jwtSecret=${{ secrets.AUTH_JWT_SECRET }} \
+            --set auth.adminPassword=${{ secrets.AUTH_ADMIN_PASSWORD }} \
             --namespace ${{ env.NAMESPACE }} \
             --create-namespace \
             --wait \
