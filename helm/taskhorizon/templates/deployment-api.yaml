@@ -18,6 +18,8 @@ spec:
       labels:
         {{- include "taskhorizon.labels" . | nindent 8 }}
         {{- include "taskhorizon.selectorLabels" (dict "Release" .Release "component" "api") | nindent 8 }}
+      annotations:
+        rollme: {{ randAlphaNum 5 | quote }}
     spec:
       serviceAccountName: {{ include "taskhorizon.serviceAccountName" . }}
       {{- with .Values.global.imagePullSecrets }}

@@ -19,7 +19,7 @@ spec:
         {{- include "taskhorizon.labels" . | nindent 8 }}
         {{- include "taskhorizon.selectorLabels" (dict "Release" .Release "component" "web") | nindent 8 }}
       annotations:
-        # Redémarrage rolling auto si nginx.conf change
+        rollme: {{ randAlphaNum 5 | quote }}
         checksum/nginx-config: {{ include (print $.Template.BasePath "/configmap-web-nginx.yaml") . | sha256sum }}
     spec:
       serviceAccountName: {{ include "taskhorizon.serviceAccountName" . }}
