@@ -43,7 +43,10 @@ def init_db():
         admin_email = getenv("ADMIN_EMAIL")
         admin_password = getenv("ADMIN_PASSWORD")
         if admin_email and admin_password:
-            if not db.query(User).filter(User.is_admin == True).first():  # noqa: E712
+            from taskhorizon.auth import verify_password
+
+            existing = db.query(User).filter(User.is_admin == True).first()  # noqa: E712
+            if not existing:
                 admin = User(
                     name="Admin",
                     email=admin_email,
@@ -51,6 +54,9 @@ def init_db():
                     is_admin=True,
                 )
                 db.add(admin)
+                db.commit()
+            elif not verify_password(admin_password, existing.password_hash):
+                existing.password_hash = hash_password(admin_password)
                 db.commit()
     finally:
         db.close()
