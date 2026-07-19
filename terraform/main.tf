@@ -253,6 +253,17 @@ resource "aws_db_instance" "task_horizon_db" {
   }
 }
 
+# Autorise le trafic HTTP entrant vers le cluster (nécessaire pour l'ALB en Auto Mode)
+resource "aws_security_group_rule" "eks_cluster_http_ingress" {
+  type              = "ingress"
+  from_port         = 80
+  to_port           = 80
+  protocol          = "tcp"
+  cidr_blocks       = ["0.0.0.0/0"]
+  security_group_id = module.eks.cluster_primary_security_group_id
+  description       = "Allow HTTP from internet for ALB"
+}
+
 resource "aws_iam_role" "eks_admin" {
   name = "${local.project}-eks-admin"
 
@@ -303,3 +314,4 @@ module "eks" {
     }
   }
 }
+
