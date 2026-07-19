@@ -17,11 +17,13 @@ env:
   IMAGE_WEB: ghcr.io/${{ github.repository }}/web
 
 jobs:
-  build-and-deploy:
+  build:
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
+    outputs:
+      version: ${{ steps.tag.outputs.version }}
 
     steps:
       - uses: actions/checkout@v4
@@ -58,6 +60,16 @@ jobs:
           tags: ${{ env.IMAGE_WEB }}:${{ steps.tag.outputs.version }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
+    permissions:
+      contents: read
+      packages: read
+
+    steps:
+      - uses: actions/checkout@v4
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -109,8 +121,8 @@ jobs:
         run: |
           helm upgrade --install ${{ env.RELEASE }} ./helm/taskhorizon \
             -f helm/taskhorizon/values-staging.yaml \
-            --set api.image.tag=${{ steps.tag.outputs.version }} \
-            --set web.image.tag=${{ steps.tag.outputs.version }} \
+            --set api.image.tag=${{ needs.build.outputs.version }} \
+            --set web.image.tag=${{ needs.build.outputs.version }} \
             --set auth.jwtSecret=${{ secrets.AUTH_JWT_SECRET }} \
             --set auth.adminPassword=${{ secrets.AUTH_ADMIN_PASSWORD }} \
             --set db.password=${{ secrets.STAGING_DB_PASSWORD }} \

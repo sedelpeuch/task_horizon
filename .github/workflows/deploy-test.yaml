@@ -17,7 +17,7 @@ env:
   IMAGE_WEB: ghcr.io/${{ github.repository }}/web
 
 jobs:
-  build-and-deploy:
+  build:
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -54,6 +54,16 @@ jobs:
           tags: ${{ env.IMAGE_WEB }}:main
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
+    permissions:
+      contents: read
+      packages: read
+
+    steps:
+      - uses: actions/checkout@v4
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
