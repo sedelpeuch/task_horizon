@@ -32,19 +32,11 @@ spec:
             - name: http
               containerPort: {{ .Values.api.port }}
               protocol: TCP
-          command:
-            - /app/.venv/bin/python
-            - -m
-            - uvicorn
-            - taskhorizon.main:app
-            - --host
-            - "0.0.0.0"
-            - --port
-            - "8000"
-            {{- if .Values.api.reload }}
-            - --reload
-            {{- end }}
           env:
+            {{- if .Values.api.reload }}
+            - name: UVICORN_RELOAD
+              value: "true"
+            {{- end }}
             - name: DATABASE_NAME
               valueFrom:
                 configMapKeyRef:
