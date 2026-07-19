@@ -1,3 +1,8 @@
+variable "environment" {
+  description = "Environnement de déploiement (test, staging, prod)"
+  type        = string
+}
+
 variable "bucket_name" {
   description = "The name of the S3 bucket"
   type        = string
