@@ -32,6 +32,7 @@ resource "aws_subnet" "task_horizon_subnet" {
   tags = merge(
     local.common_tags,
     { Name = "${local.project}-subnet-${each.key}" },
+    { "kubernetes.io/cluster/task-horizon-eks" = "shared" },
     each.value.tier == "public"
       ? { "kubernetes.io/role/elb" = "1" }
       : { "kubernetes.io/role/internal-elb" = "1" }
