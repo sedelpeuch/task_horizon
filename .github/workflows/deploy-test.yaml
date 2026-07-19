@@ -5,6 +5,10 @@ on:
     workflows: [Publish]
     types: [completed]
 
+concurrency:
+  group: deploy-test
+  cancel-in-progress: true
+
 env:
   CLUSTER_NAME: task-horizon-eks
   AWS_REGION: eu-west-3
