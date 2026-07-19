@@ -4,7 +4,6 @@ on:
   workflow_run:
     workflows: [Publish]
     types: [completed]
-    branches: [master]
 
 env:
   CLUSTER_NAME: task-horizon-eks
