@@ -38,7 +38,11 @@ jobs:
         working-directory: terraform
         run: |
           terraform apply -auto-approve \
-            -var-file=envs/test/terraform.tfvars
+            -var="environment=test" \
+            -var="bucket_name=task-horizon-avatar-data-test" \
+            -var="enable_rds=false" \
+            -var="db_username=test" \
+            -var="db_password=test"
 
       - name: Get kubeconfig
         run: |
