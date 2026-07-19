@@ -53,6 +53,9 @@ web:
     tag: main
   replicaCount: 1
   port: 80
+  service:
+    type: ClusterIP
+    annotations: {}
   resources:
     requests:
       cpu: 50m
