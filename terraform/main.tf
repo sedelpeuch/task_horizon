@@ -13,8 +13,10 @@ provider "aws" {
 }
 
 resource "aws_vpc" "task_horizon_vpc" {
-  cidr_block = "10.0.0.0/16"
-  tags       = merge(local.common_tags, { Name = "TaskHorizonVPC" })
+  cidr_block           = "10.0.0.0/16"
+  enable_dns_hostnames = true
+  enable_dns_support   = true
+  tags                 = merge(local.common_tags, { Name = "TaskHorizonVPC" })
 }
 
 # 4 subnets : 2 publics + 2 privés dans 2 AZs différentes.
