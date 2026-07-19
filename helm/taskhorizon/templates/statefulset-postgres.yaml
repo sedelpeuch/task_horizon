@@ -18,6 +18,8 @@ spec:
       labels:
         {{- include "taskhorizon.labels" . | nindent 8 }}
         {{- include "taskhorizon.selectorLabels" (dict "Release" .Release "component" "postgres") | nindent 8 }}
+      annotations:
+        rollme: {{ randAlphaNum 5 | quote }}
     spec:
       containers:
         - name: postgres
