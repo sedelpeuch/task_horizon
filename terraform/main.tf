@@ -1,5 +1,11 @@
 terraform {
   required_version = ">= 0.12"
+  required_providers {
+    kubernetes = {
+      source  = "hashicorp/kubernetes"
+      version = "~> 2.0"
+    }
+  }
   backend "s3" {
     bucket       = "task-horizon-tfstate"
     key          = "terraform/terraform.tfstate"
@@ -10,6 +16,16 @@ terraform {
 
 provider "aws" {
   region = var.aws_region
+}
+
+provider "kubernetes" {
+  host                   = module.eks.cluster_endpoint
+  cluster_ca_certificate = base64decode(module.eks.cluster_certificate_authority_data)
+  exec {
+    api_version = "client.authentication.k8s.io/v1beta1"
+    command     = "aws"
+    args        = ["eks", "get-token", "--cluster-name", module.eks.cluster_name, "--region", var.aws_region]
+  }
 }
 
 resource "aws_vpc" "task_horizon_vpc" {
@@ -315,3 +331,18 @@ module "eks" {
   }
 }
 
+
+resource "kubernetes_ingress_class_v1" "alb" {
+  depends_on = [module.eks]
+
+  metadata {
+    name = "alb"
+    annotations = {
+      "ingressclass.kubernetes.io/is-default-class" = "false"
+    }
+  }
+
+  spec {
+    controller = "ingress.k8s.aws/alb"
+  }
+}
