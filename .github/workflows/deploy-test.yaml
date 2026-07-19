@@ -53,7 +53,7 @@ jobs:
             --docker-username=${{ github.actor }} \
             --docker-password=${{ secrets.GHCR_PAT }} \
             --namespace=${{ env.NAMESPACE }} \
-            --dry-run=client -o yaml | kubectl apply -f -
+            --dry-run=client -o yaml | kubectl apply --validate=false -f -
 
       - name: Deploy to test
         run: |
