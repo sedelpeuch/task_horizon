@@ -1,6 +1,5 @@
 locals {
-  endpoint = "http://localhost:4566"
-  project  = "task-horizon"
+  project = "task-horizon"
 
   common_tags = {
     Project     = "TaskHorizon"

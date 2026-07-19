@@ -1,32 +1,15 @@
 terraform {
   required_version = ">= 0.12"
   backend "s3" {
-    bucket                      = "task-horizon-tfstate"
-    key                         = "terraform/terraform.tfstate"
-    region                      = "eu-west-3"
-    access_key                  = "test"
-    secret_key                  = "test"
-    skip_credentials_validation = true
-    skip_metadata_api_check     = true
-    use_lockfile                = true
+    bucket       = "task-horizon-tfstate"
+    key          = "terraform/terraform.tfstate"
+    region       = "eu-west-3"
+    use_lockfile = true
   }
 }
 
 provider "aws" {
-  region     = var.aws_region
-  access_key = "test"
-  secret_key = "test"
-
-  skip_credentials_validation = true
-  skip_requesting_account_id  = true
-  skip_metadata_api_check     = true
-
-  endpoints {
-    s3  = local.endpoint
-    rds = local.endpoint
-    ec2 = local.endpoint
-    sts = local.endpoint
-  }
+  region = var.aws_region
 }
 
 resource "aws_vpc" "task_horizon_vpc" {

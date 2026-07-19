@@ -1,0 +1,68 @@
+name: Deploy Test
+
+on:
+  workflow_run:
+    workflows: [Publish]
+    types: [completed]
+    branches: [master]
+
+env:
+  CLUSTER_NAME: task-horizon-eks
+  AWS_REGION: eu-west-3
+  NAMESPACE: taskhorizon
+  RELEASE: taskhorizon-test
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform init
+        working-directory: terraform
+        run: terraform init -backend-config=envs/test/backend.hcl
+
+      - name: Terraform apply
+        working-directory: terraform
+        run: |
+          terraform apply -auto-approve \
+            -var-file=envs/test/terraform.tfvars
+
+      - name: Get kubeconfig
+        run: |
+          aws eks update-kubeconfig \
+            --name ${{ env.CLUSTER_NAME }} \
+            --region ${{ env.AWS_REGION }}
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+
+      - name: Create GHCR image pull secret
+        run: |
+          kubectl create secret docker-registry ghcr-credential \
+            --docker-server=ghcr.io \
+            --docker-username=${{ github.actor }} \
+            --docker-password=${{ secrets.GHCR_PAT }} \
+            --namespace=${{ env.NAMESPACE }} \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Deploy to test
+        run: |
+          helm upgrade --install ${{ env.RELEASE }} ./helm/taskhorizon \
+            -f helm/taskhorizon/values-test.yaml \
+            --namespace ${{ env.NAMESPACE }} \
+            --create-namespace \
+            --wait \
+            --timeout 5m
