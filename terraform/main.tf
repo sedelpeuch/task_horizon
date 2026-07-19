@@ -266,4 +266,16 @@ module "eks" {
     enabled    = true
     node_pools = ["general-purpose"]
   }
+
+  access_entries = {
+    admin = {
+      principal_arn = "arn:aws:iam::933103158736:user/sedelpeuch"
+      policy_associations = {
+        cluster_admin = {
+          policy_arn   = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy"
+          access_scope = { type = "cluster" }
+        }
+      }
+    }
+  }
 }
