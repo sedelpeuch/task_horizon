@@ -19,7 +19,7 @@ spec:
       secretName: {{ .Values.ingress.tls.secretName }}
   {{- end }}
   rules:
-    - host: {{ .Values.ingress.host | quote }}
+    - {{- if .Values.ingress.host }}host: {{ .Values.ingress.host | quote }}{{ end }}
       http:
         paths:
           - path: /api/
