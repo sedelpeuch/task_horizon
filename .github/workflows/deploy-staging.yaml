@@ -1,0 +1,91 @@
+name: Deploy Staging
+
+on:
+  workflow_run:
+    workflows: [Publish]
+    types: [completed]
+    branches: ['v*.*.*']
+
+env:
+  CLUSTER_NAME: task-horizon-eks
+  AWS_REGION: eu-west-3
+  NAMESPACE: taskhorizon-staging
+  RELEASE: taskhorizon-staging
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    permissions:
+      contents: read
+      packages: read
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
+
+      - name: Terraform init
+        working-directory: terraform
+        run: terraform init -backend-config=envs/staging/backend.hcl
+
+      - name: Terraform apply
+        working-directory: terraform
+        run: |
+          terraform apply -auto-approve \
+            -var-file=envs/staging/terraform.tfvars \
+            -var "db_password=${{ secrets.STAGING_DB_PASSWORD }}"
+
+      - name: Get RDS endpoint
+        id: rds
+        working-directory: terraform
+        run: echo "host=$(terraform output -raw rds_endpoint)" >> $GITHUB_OUTPUT
+
+      - name: Get kubeconfig
+        run: |
+          aws eks update-kubeconfig \
+            --name ${{ env.CLUSTER_NAME }} \
+            --region ${{ env.AWS_REGION }}
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+
+      - name: Create namespace
+        run: |
+          kubectl create namespace ${{ env.NAMESPACE }} --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Create GHCR image pull secret
+        run: |
+          kubectl create secret docker-registry ghcr-credential \
+            --docker-server=ghcr.io \
+            --docker-username=${{ github.actor }} \
+            --docker-password=${{ secrets.GHCR_PAT }} \
+            --namespace=${{ env.NAMESPACE }} \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Deploy to staging
+        run: |
+          TAG="${{ github.event.workflow_run.head_branch }}"
+          helm upgrade --install ${{ env.RELEASE }} ./helm/taskhorizon \
+            -f helm/taskhorizon/values-staging.yaml \
+            --set api.image.tag=${TAG} \
+            --set web.image.tag=${TAG} \
+            --set auth.jwtSecret=${{ secrets.AUTH_JWT_SECRET }} \
+            --set auth.adminPassword=${{ secrets.AUTH_ADMIN_PASSWORD }} \
+            --set db.password=${{ secrets.STAGING_DB_PASSWORD }} \
+            --set db.externalHost=${{ steps.rds.outputs.host }} \
+            --namespace ${{ env.NAMESPACE }} \
+            --create-namespace \
+            --wait

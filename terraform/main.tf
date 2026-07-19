@@ -230,6 +230,11 @@ output "api_iam_role_arn" {
   description = "ARN du rôle IAM à annoter sur le ServiceAccount de l'API"
 }
 
+output "rds_endpoint" {
+  value       = var.enable_rds ? aws_db_instance.task_horizon_db[0].address : ""
+  description = "Endpoint RDS (sans port) — vide si RDS désactivé"
+}
+
 resource "aws_db_subnet_group" "task_horizon_db_subnet_group" {
   count      = var.enable_rds ? 1 : 0
   name       = "task-horizon-db-subnet-group"

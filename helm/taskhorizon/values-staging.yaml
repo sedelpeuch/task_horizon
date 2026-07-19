@@ -1,33 +1,29 @@
 api:
   replicaCount: 2
   reload: false
-  env:
-    LOG_LEVEL: info
   pdb:
     enabled: true
     minAvailable: 1
 
 web:
+  replicaCount: 2
+  service:
+    type: LoadBalancer
+    annotations:
+      service.beta.kubernetes.io/aws-load-balancer-type: "external"
+      service.beta.kubernetes.io/aws-load-balancer-nlb-target-type: "ip"
+      service.beta.kubernetes.io/aws-load-balancer-scheme: "internet-facing"
   pdb:
     enabled: true
     minAvailable: 1
 
 postgres:
-  enabled: true
-  pvc:
-    enabled: true
-    size: 5Gi
-    storageClassName: ''
+  enabled: false
 
 db:
   name: taskhorizon
-  user: postgres
-  # Injecté en CI : --set db.password="${STAGING_DB_PASSWORD}"
-  password: ''
+  user: taskhorizon
+  # password et externalHost injectés via --set en CI
 
 ingress:
-  enabled: true
-  className: nginx
-  host: staging.taskhorizon.example.com
-  tls:
-    enabled: false
+  enabled: false
