@@ -46,6 +46,10 @@ jobs:
       - name: Set up Helm
         uses: azure/setup-helm@v4
 
+      - name: Create namespace
+        run: |
+          kubectl create namespace ${{ env.NAMESPACE }} --dry-run=client -o yaml | kubectl apply -f -
+
       - name: Create GHCR image pull secret
         run: |
           kubectl create secret docker-registry ghcr-credential \
