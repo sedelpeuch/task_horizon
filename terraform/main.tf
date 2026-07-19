@@ -253,6 +253,21 @@ resource "aws_db_instance" "task_horizon_db" {
   }
 }
 
+resource "aws_iam_role" "eks_admin" {
+  name = "${local.project}-eks-admin"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect    = "Allow"
+      Principal = { AWS = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:root" }
+      Action    = "sts:AssumeRole"
+    }]
+  })
+
+  tags = local.common_tags
+}
+
 module "eks" {
   source          = "terraform-aws-modules/eks/aws"
   version         = "~> 20.0"
@@ -270,6 +285,15 @@ module "eks" {
   access_entries = {
     admin = {
       principal_arn = "arn:aws:iam::933103158736:user/sedelpeuch"
+      policy_associations = {
+        cluster_admin = {
+          policy_arn   = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy"
+          access_scope = { type = "cluster" }
+        }
+      }
+    }
+    eks_admin_role = {
+      principal_arn = aws_iam_role.eks_admin.arn
       policy_associations = {
         cluster_admin = {
           policy_arn   = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy"
