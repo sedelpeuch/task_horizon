@@ -70,5 +70,4 @@ jobs:
             --set auth.adminPassword=${{ secrets.AUTH_ADMIN_PASSWORD }} \
             --namespace ${{ env.NAMESPACE }} \
             --create-namespace \
-            --wait \
-            --timeout 5m
+            --wait

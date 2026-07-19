@@ -33,7 +33,7 @@ spec:
               containerPort: {{ .Values.api.port }}
               protocol: TCP
           command:
-            - python
+            - /app/.venv/bin/python
             - -m
             - uvicorn
             - taskhorizon.main:app
