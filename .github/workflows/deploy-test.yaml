@@ -1,9 +1,7 @@
 name: Deploy Test
 
 on:
-  workflow_run:
-    workflows: [Publish]
-    types: [completed]
+  push:
     branches: [master]
 
 env:
@@ -15,7 +13,6 @@ env:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
 
     steps:
       - uses: actions/checkout@v4
@@ -38,11 +35,7 @@ jobs:
         working-directory: terraform
         run: |
           terraform apply -auto-approve \
-            -var="environment=test" \
-            -var="bucket_name=task-horizon-avatar-data-test" \
-            -var="enable_rds=false" \
-            -var="db_username=test" \
-            -var="db_password=test"
+            -var-file=envs/test/terraform.tfvars
 
       - name: Get kubeconfig
         run: |
